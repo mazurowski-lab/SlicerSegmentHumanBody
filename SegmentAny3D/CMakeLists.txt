@@ -13,10 +13,10 @@ set(MODULE_PYTHON_RESOURCES
 set(EXTENSION_HOMEPAGE "https://github.com/mazurowski-lab/SlicerSegmentAny3D")
 set(EXTENSION_CATEGORY "Segmentation")
 set(EXTENSION_CONTRIBUTORS "Zafer Yildiz (Duke University - Mazurowski Lab)")
-set(EXTENSION_DESCRIPTION "SegmentAny3D aims to asist its users in segmenting medical data on 3D Slicer by comprehensively integrating the Segment Anything Model (SAM) developed by Meta.")
+set(EXTENSION_DESCRIPTION "SegmentAny3D aims to asist its users in segmenting medical data on 3D Slicer by comprehensively integrating the SegmentAnyBone developed by Mazurowski Lab.")
 set(EXTENSION_ICONURL "https://raw.githubusercontent.com/mazurowski-lab/SlicerSegmentAny3D/SegmentAny3D/Resources/Icons/SegmentAny3D.png")
 set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/mazurowski-lab/SlicerSegmentAny3D/Screenshots/sws1.png")
-set(EXTENSION_DEPENDS "NA") # Specified as a list or "NA" if no dependencies
+set(EXTENSION_DEPENDS "PyTorch") # Specified as a list or "NA" if no dependencies
 #-----------------------------------------------------------------------------
 slicerMacroBuildScriptedModule(
   NAME ${MODULE_NAME}

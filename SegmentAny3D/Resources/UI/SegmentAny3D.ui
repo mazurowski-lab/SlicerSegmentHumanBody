@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
-	<class>SegmentWithSAM</class>
-	<widget class="qMRMLWidget" name="SegmentWithSAM">
+	<class>SegmentAny3D</class>
+	<widget class="qMRMLWidget" name="SegmentAny3D">
 		
 		<layout class="QGridLayout" name="gridLayout">
 			
@@ -181,13 +181,13 @@
 	<connections>
 		
 		<connection>
-			<sender>SegmentWithSAM</sender>
+			<sender>SegmentAny3D</sender>
 			<signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
 			<receiver>positivePrompts</receiver>
 			<slot>setMRMLScene(vtkMRMLScene*)</slot>
 		</connection>
 		<connection>
-			<sender>SegmentWithSAM</sender>
+			<sender>SegmentAny3D</sender>
 			<signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
 			<receiver>negativePrompts</receiver>
 			<slot>setMRMLScene(vtkMRMLScene*)</slot>

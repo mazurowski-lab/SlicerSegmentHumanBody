@@ -42,9 +42,9 @@ If you click "Run Automatic Segmentation" button, SegmentAnyBone will run in aut
 
 Firstly, select the label you want to segment from the dropdown list (hip for the image below). Then, click "Start Segmentation for Current Slice" button.
 
-If it is the first to segment a slice of this file, you need to wait for SAM to produce some files that will be used for the segmentation. After SAM generated these files, you can start putting **prompt points** or **prompt boxes** on the current slice. You'll be able to see the segmentation mask on 3D Slicer. Please click "Stop Segmentation for Current Slice" whenever you finish your segmentation for the current slice.
+If it is the first to segment a slice of this file, you need to wait for SegmentAnyBone to produce some files that will be used for the segmentation. After SegmentAnyBone generated these files, you can start putting **prompt points** or **prompt boxes** on the current slice. You'll be able to see the segmentation mask on 3D Slicer. Please click "Stop Segmentation for Current Slice" whenever you finish your segmentation for the current slice.
 
-If you are not satisfied with the segmentation mask produced by SAM, you can edit it as you wish using the "Segment Editor" module of 3D Slicer.
+If you are not satisfied with the segmentation mask produced by SegmentAnyBone, you can edit it as you wish using the "Segment Editor" module of 3D Slicer.
 
 
 ## Citation
