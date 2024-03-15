@@ -20,16 +20,21 @@ If you've added the extension to 3D Slicer, you should be able to see it under *
 
 Before starting the segmentation, make sure that you've created the necessary labels for your case by clicking "Configure labels in the segment editor" button. You need to turn back to our extension through Modules > Segmentation > SegmentAny3D path again, after you create your labels in the segment editor. You are ready to segment now!
 
+### Automatic Segmentation
+
 <img src="Screenshots/sws1.png" width=45%> <img src="Screenshots/sws2.png" width=42%>
 
-Firstly, select the label you want to segment from the dropdown list (hip for the image below). Then, click "Start Segmentation for Current Slice" button.
+If you click "Run Automatic Segmentation" button, SegmentAnyBone will run in automated mode and will segment bones in each slice it can detect. You can assign different labels after you get your binary segmentation. There is 2 different modes for label assignment:
 
-You can watch our <a href="https://youtu.be/PAW2iIXMGvY">tutorial video</a> to learn how to use SegmentAny3D.
+**2D Label Assignment:** This mode is used for changing the label of the connected component only in the current slice. You should first choose your target label and then click "Assign Label (2D)" button.
+**3D Label Assignment:** This mode is used for changing the label of the connected component through consecutive slices in 3D space. You should first choose your target label and then click "Assign Label (3D)" button.
+
+### Prompt Based Segmentation
 
 <img src="Screenshots/sws3.png" width=45% height=45%>
 
-If it is the first to segment a slice of this file, you need to wait for SAM to produce some files that will be used for the segmentation. After SAM generated these files, you can start putting **prompt points** or **prompt boxes** on the current slice. You'll be able to see the segmentation mask on 3D Slicer. Please click "Stop Segmentation for Current Slice" whenever you finish your segmentation for the current slice.
+Firstly, select the label you want to segment from the dropdown list (hip for the image below). Then, click "Start Segmentation for Current Slice" button.
 
-<img src="Screenshots/sws4.png" width=45% height=45%>
+If it is the first to segment a slice of this file, you need to wait for SAM to produce some files that will be used for the segmentation. After SAM generated these files, you can start putting **prompt points** or **prompt boxes** on the current slice. You'll be able to see the segmentation mask on 3D Slicer. Please click "Stop Segmentation for Current Slice" whenever you finish your segmentation for the current slice.
 
 If you are not satisfied with the segmentation mask produced by SAM, you can edit it as you wish using the "Segment Editor" module of 3D Slicer.
