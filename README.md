@@ -27,6 +27,7 @@ Before starting the segmentation, make sure that you've created the necessary la
 If you click "Run Automatic Segmentation" button, SegmentAnyBone will run in automated mode and will segment bones in each slice it can detect. You can assign different labels after you get your binary segmentation. There is 2 different modes for label assignment:
 
 **2D Label Assignment:** This mode is used for changing the label of the connected component only in the current slice. You should first choose your target label and then click "Assign Label (2D)" button.
+
 **3D Label Assignment:** This mode is used for changing the label of the connected component through consecutive slices in 3D space. You should first choose your target label and then click "Assign Label (3D)" button.
 
 ### Prompt Based Segmentation
