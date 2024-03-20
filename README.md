@@ -1,30 +1,30 @@
-# SlicerSegmentAny3D
+# SlicerSegmentHumanBody
 
 [![arXiv Paper](https://img.shields.io/badge/arXiv-2401.12974-orange.svg?style=flat)](https://arxiv.org/abs/2401.12974)
 
-SegmentAny3D aims to asist its users in segmenting medical data on <a href="https://github.com/Slicer/Slicer">3D Slicer</a> by integrating the <a href="https://github.com/mazurowski-lab/SegmentAnyBone">SegmentAnyBone</a> developed by Mazurowski Lab.
+SegmentHumanBody aims to asist its users in segmenting medical data on <a href="https://github.com/Slicer/Slicer">3D Slicer</a> by integrating the <a href="https://github.com/mazurowski-lab/SegmentAnyBone">SegmentAnyBone</a> developed by Mazurowski Lab.
 
 ## License
 
 The repository is licensed under the [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)
 
-<img src="SegmentAny3D/Resources/Icons/SegmentAny3D.png" width=50% height=50%>
+<img src="SegmentHumanBody/Resources/Icons/SegmentHumanBody.png" width=50% height=50%>
 
 ## Installation via GitHub Repository
 
 You can clone this repository by running the following command:
 
 ```
-git clone https://github.com/mazurowski-lab/SlicerSegmentAny3D.git
+git clone https://github.com/mazurowski-lab/SlicerSegmentHumanBody.git
 ```
 
 After cloning the repository, you need to introduce the extension to 3D Slicer. Please go to Modules > Developer Tools > Extension Wizard on 3D Slicer and click 'Select Extension' button. You should select the root folder that contains this repository in the pop-up. If you don't get any error on Python terminal, that means you are ready to use the extension!
 
 ## Usage
 
-If you've added the extension to 3D Slicer, you should be able to see it under **Modules > Segmentation > SegmentAny3D**. You can see the user interface of the extension after you click on SegmentAny3D in this menu.
+If you've added the extension to 3D Slicer, you should be able to see it under **Modules > Segmentation > SegmentHumanBody**. You can see the user interface of the extension after you click on SegmentHumanBody in this menu.
 
-Before starting the segmentation, make sure that you've created the necessary labels for your case by clicking "Configure labels in the segment editor" button. You need to turn back to our extension through Modules > Segmentation > SegmentAny3D path again, after you create your labels in the segment editor. You are ready to segment now!
+Before starting the segmentation, make sure that you've created the necessary labels for your case by clicking "Configure labels in the segment editor" button. You need to turn back to our extension through Modules > Segmentation > SegmentHumanBody path again, after you create your labels in the segment editor. You are ready to segment now!
 
 ### Automatic Segmentation
 
@@ -46,14 +46,13 @@ If it is the first to segment a slice of this file, you need to wait for Segment
 
 If you are not satisfied with the segmentation mask produced by SegmentAnyBone, you can edit it as you wish using the "Segment Editor" module of 3D Slicer.
 
-
 ## Citation
 
 If you find our work to be useful for your research, please cite [our paper](https://arxiv.org/abs/2401.12974):
 
 ```bibtex
 @misc{gu2024segmentanybone,
-      title={SegmentAnyBone: A Universal Model that Segments Any Bone at Any Location on MRI}, 
+      title={SegmentAnyBone: A Universal Model that Segments Any Bone at Any Location on MRI},
       author={Hanxue Gu and Roy Colglazier and Haoyu Dong and Jikai Zhang and Yaqian Chen and Zafer Yildiz and Yuwen Chen and Lin Li and Jichen Yang and Jay Willhite and Alex M. Meyer and Brian Guo and Yashvi Atul Shah and Emily Luo and Shipra Rajput and Sally Kuehn and Clark Bulleit and Kevin A. Wu and Jisoo Lee and Brandon Ramirez and Darui Lu and Jay M. Levin and Maciej A. Mazurowski},
       year={2024},
       eprint={2401.12974},

@@ -17,30 +17,30 @@ from models import cfg
 from collections import deque
 
 #
-# SegmentAny3D
+# SegmentHumanBody
 #
 args = cfg.parse_args()
 args.if_mask_decoder_adapter=True
 args.if_encoder_adapter = True
 args.decoder_adapt_depth = 2
 
-class SegmentAny3D(ScriptedLoadableModule):
+class SegmentHumanBody(ScriptedLoadableModule):
     """Uses ScriptedLoadableModule base class, available at:
     https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
     """
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = "SegmentAny3D"
+        self.parent.title = "SegmentHumanBody"
         self.parent.categories = ["Segmentation"]
         self.parent.dependencies = []
         self.parent.contributors = ["Zafer Yildiz (Mazurowski Lab, Duke University)"]
         self.parent.helpText = """
-The SegmentAny3D module aims to assist its users in segmenting medical data by integrating
+The SegmentHumanBody module aims to assist its users in segmenting medical data by integrating
 the <a href="https://github.com/facebookresearch/segment-anything">Segment Anything Model (SAM)</a>
 developed by Meta.<br>
 <br>
-See more information in <a href="https://github.com/mazurowski-lab/SlicerSegmentAny3D">module documentation</a>.
+See more information in <a href="https://github.com/mazurowski-lab/SlicerSegmentHumanBody">module documentation</a>.
 """
         self.parent.acknowledgementText = """
 This file was originally developed by Zafer Yildiz (Mazurowski Lab, Duke University).
@@ -48,11 +48,11 @@ This file was originally developed by Zafer Yildiz (Mazurowski Lab, Duke Univers
 
 
 #
-# SegmentAny3DWidget
+# SegmentHumanBodyWidget
 #
 
 
-class SegmentAny3DWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
+class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     """Uses ScriptedLoadableModuleWidget base class, available at:
     https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
     """
@@ -86,27 +86,7 @@ class SegmentAny3DWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         slicer.util.warningDisplay(
                 "The model and the extension is licensed under the CC BY-NC 4.0 license!\n\nPlease also note that this software is developed for research purposes and is not intended for clinical use yet. Users should exercise caution and are advised against employing it immediately in clinical or medical settings."
-            )
-
-        if not os.path.exists(self.modelCheckpoint):
-            if slicer.util.confirmOkCancelDisplay(
-                "SegmentAnyBone model checkpoint should be downloaded before using the extension. Click OK to install it now!"
-            ):
-                try:
-                    import gdown
-                except ModuleNotFoundError:
-                    slicer.util.pip_install("gdown")
-
-                try: 
-                    import gdown
-                except ModuleNotFoundError:
-                    raise RuntimeError("There is a problem about the installation of 'gdown' package. Please try again to install!")
-                
-                bone_sam_url = 'https://drive.google.com/uc?id=1BkEIeHjHaaAky_JhF_SIBFOoi-hPUIAO'
-                attention_url = ''
-                output = 'bone_sam.pth'
-                gdown.download(bone_sam_url, self.modelCheckpoint, quiet=False)
-                
+            )        
           
         try:
             import PyTorchUtils
@@ -121,12 +101,11 @@ class SegmentAny3DWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             slicer.util.delayDisplay("PyTorch Python package is required. Installing... (it may take several minutes)")
             torch = torchLogic.installTorch(
                 askConfirmation=True,
-                forceComputationBackend="cu117",
                 torchVersionRequirement=f">={minimumTorchVersion}",
                 torchvisionVersionRequirement=f">={minimumTorchVisionVersion}",
             )
             if torch is None:
-                raise ValueError("You need to install PyTorch to use SegmentAny3D!")
+                raise ValueError("You need to install PyTorch to use SegmentHumanBody!")
         else:
             # torch is installed, check version
             from packaging import version
@@ -141,20 +120,32 @@ class SegmentAny3DWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         import torch
 
         try:
+            import timm
+            import einops
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "'einops or timm' package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("einops")
+                slicer.util.pip_install("timm")
+        
+        try: 
+            import timm
+            import einops
+        except ModuleNotFoundError:
+            raise RuntimeError("There is a problem about the installation of 'timm' or 'einops' package. Please try again to install!")
+        
+        try:
             from segment_anything import sam_model_registry, SamPredictor
         except ModuleNotFoundError:
             if slicer.util.confirmOkCancelDisplay(
                 "'segment-anything' is missing. Click OK to install it now!"
             ):
                 slicer.util.pip_install("https://github.com/facebookresearch/segment-anything/archive/6fdee8f2727f4506cfbbe553e23b895e27956588.zip") 
-                slicer.util.pip_install("--user einops")
-                slicer.util.pip_install("--user timm")
         try: 
             from segment_anything import sam_model_registry, SamPredictor
             from models.sam import sam_model_registry as sab_model_registry
             from models.sam import SamPredictor as SabPredictor
-            import timm
-            import einops
         except ModuleNotFoundError:
             raise RuntimeError("There is a problem about the installation of 'segment-anything' package. Please try again to install!")
         
@@ -190,11 +181,11 @@ class SegmentAny3DWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         ScriptedLoadableModuleWidget.setup(self)
 
-        uiWidget = slicer.util.loadUI(self.resourcePath("UI/SegmentAny3D.ui"))
+        uiWidget = slicer.util.loadUI(self.resourcePath("UI/SegmentHumanBody.ui"))
         self.layout.addWidget(uiWidget)
         self.ui = slicer.util.childWidgetVariables(uiWidget)
         uiWidget.setMRMLScene(slicer.mrmlScene)
-        self.logic = SegmentAny3DLogic()
+        self.logic = SegmentHumanBodyLogic()
 
         # Connections
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
@@ -961,11 +952,11 @@ class SegmentAny3DWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
 
 #
-# SegmentAny3DLogic
+# SegmentHumanBodyLogic
 #
 
 
-class SegmentAny3DLogic(ScriptedLoadableModuleLogic):
+class SegmentHumanBodyLogic(ScriptedLoadableModuleLogic):
     """This class should implement all the actual
     computation done by your module.  The interface
     should be such that other python code can import
