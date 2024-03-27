@@ -80,7 +80,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         self.modelVersion = "vit_t"
         self.modelName = "bone_sam.pth"
-        self.modelCheckpoint = self.resourcePath("UI") + "/../../../" + self.modelName
+        self.modelCheckpoint = self.resourcePath("UI") + "/../../models/" + self.modelName
         self.masks = None
         self.mask_threshold = 0
 

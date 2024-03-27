@@ -9,7 +9,25 @@ set(MODULE_PYTHON_SCRIPTS
 set(MODULE_PYTHON_RESOURCES
   Resources/Icons/${MODULE_NAME}.png
   Resources/UI/${MODULE_NAME}.ui
-  models
+  models/cfg.py
+  models/sam/predictor.py
+  models/sam/build_sam.py
+  models/sam/__init__.py
+  models/sam/automatic_mask_generator.py
+  models/sam/modeling/__init__.py
+  models/sam/modeling/common.py
+  models/sam/modeling/image_encoder.py
+  models/sam/modeling/mask_decoder.py
+  models/sam/modeling/prompt_encoder.py
+  models/sam/modeling/sam.py
+  models/sam/modeling/tiny_vit_sam.py
+  models/sam/modeling/transformer.py
+  models/sam/modeling/vit.py
+  models/sam/utils/__init__.py
+  models/sam/utils/amg.py
+  models/sam/utils/onnx.py
+  models/sam/utils/transforms.py
+  models/bone_sam.pth
   )
 set(EXTENSION_HOMEPAGE "https://github.com/mazurowski-lab/SlicerSegmentHumanBody")
 set(EXTENSION_CATEGORY "Segmentation")
