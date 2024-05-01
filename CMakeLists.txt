@@ -4,12 +4,18 @@ project(SegmentHumanBody)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "https://github.com/mazurowski-lab/SlicerSegmentHumanBody")
+set(EXTENSION_HOMEPAGE "https://github.com/mazurowski-lab/SlicerSegmentHumanBody#readme")
 set(EXTENSION_CATEGORY "Segmentation")
-set(EXTENSION_CONTRIBUTORS "Zafer Yildiz (Duke University - Mazurowski Lab)")
-set(EXTENSION_DESCRIPTION "SegmentHumanBody aims to asist its users in segmenting medical data on 3D Slicer by comprehensively integrating the SegmentAnyBone developed by Mazurowski Lab.")
-set(EXTENSION_ICONURL "https://raw.githubusercontent.com/mazurowski-lab/SlicerSegmentHumanBody/SegmentHumanBody/Resources/Icons/SegmentHumanBody.png")
-set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/mazurowski-lab/SlicerSegmentHumanBody/Screenshots/sws1.png")
+set(EXTENSION_CONTRIBUTORS "Zafer Yildiz (Mazurowski Lab, Duke University)")
+set(EXTENSION_DESCRIPTION "SegmentHumanBody aims to asist its users in segmenting MRI medical data on 3D Slicer by comprehensively integrating the SegmentHumanBody model developed by Mazurowski Lab.")
+set(EXTENSION_ICONURL "https://raw.githubusercontent.com/mazurowski-lab/SlicerSegmentHumanBody/main/SegmentHumanBody/Resources/Icons/SegmentHumanBody.png")
+set(EXTENSION_SCREENSHOTURLS
+  "https://raw.githubusercontent.com/mazurowski-lab/SlicerSegmentHumanBody/main/Screenshots/sws1.png"
+  "https://raw.githubusercontent.com/mazurowski-lab/SlicerSegmentHumanBody/main/Screenshots/sws2.png"
+  "https://raw.githubusercontent.com/mazurowski-lab/SlicerSegmentHumanBody/main/Screenshots/sws3.png"
+  "https://raw.githubusercontent.com/mazurowski-lab/SegmentAnyBone/main/segment-any-bone.png"
+  "https://raw.githubusercontent.com/mazurowski-lab/SegmentAnyBone/main/dataset.png"
+)
 set(EXTENSION_DEPENDS "PyTorch") # Specified as a list or "NA" if no dependencies
 
 #-----------------------------------------------------------------------------
