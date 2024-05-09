@@ -98,14 +98,16 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         torchLogic = PyTorchUtils.PyTorchUtilsLogic()
 
         if not torchLogic.torchInstalled():
-            slicer.util.delayDisplay("PyTorch Python package is required. Installing... (it may take several minutes)")
-            torch = torchLogic.installTorch(
-                askConfirmation=True,
-                torchVersionRequirement=f">={minimumTorchVersion}",
-                torchvisionVersionRequirement=f">={minimumTorchVisionVersion}",
-            )
-            if torch is None:
-                raise ValueError("You need to install PyTorch to use SegmentHumanBody!")
+            if slicer.util.confirmOkCancelDisplay(
+                "PyTorch Python package is required. Would you like to install it now? (it may take several minutes)"
+            ):
+                torch = torchLogic.installTorch(
+                    askConfirmation=True,
+                    torchVersionRequirement=f">={minimumTorchVersion}",
+                    torchvisionVersionRequirement=f">={minimumTorchVisionVersion}",
+                )
+                if torch is None:
+                    raise ValueError("You need to install PyTorch to use SegmentHumanBody!")
         else:
             # torch is installed, check version
             from packaging import version
