@@ -22,25 +22,28 @@ After cloning the repository, you need to introduce the extension to 3D Slicer. 
 
 ## Usage
 
-If you've added the extension to 3D Slicer, you should be able to see it under **Modules > Segmentation > SegmentHumanBody**. You can see the user interface of the extension after you click on SegmentHumanBody in this menu.
+### Preparation
 
-Before starting the segmentation, make sure that you've created the necessary labels for your case by clicking "Configure labels in the segment editor" button. You need to turn back to our extension through Modules > Segmentation > SegmentHumanBody path again, after you create your labels in the segment editor. You are ready to segment now!
+- Load an image to be segmented. For example, you can use CTLiver data set from **Sample Data** module.
+- Choose **Modules > Segmentation > SegmentHumanBody** module in the module selector. The first time the module is started, it will ask permission to install pytorch. Give permission and wait several minutes for the installation to complete. The application will not be responsive during the installation.
+- Click "Configure labels in the segment editor" button to create a label for each structure that will be segmented. For example, "hip" and "femur".
+- Go back to **SegmentHumanBody** module by clicking the green left arrow on the module toolbar. You are ready to segment now!
 
 ### Automatic Segmentation
 
 <img src="Screenshots/sws1.png" width=45%> <img src="Screenshots/sws2.png" width=42%>
 
-If you click "Run Automatic Segmentation" button, SegmentAnyBone will run in automated mode and will segment bones in each slice it can detect. You can assign different labels after you get your binary segmentation. There is 2 different modes for label assignment:
-
-**2D Label Assignment:** This mode is used for changing the label of the connected component only in the current slice. You should first choose your target label and then click "Assign Label (2D)" button.
-
-**3D Label Assignment:** This mode is used for changing the label of the connected component through consecutive slices in 3D space. You should first choose your target label and then click "Assign Label (3D)" button.
+- Click "Run Automatic Segmentation" button and wait until the processing is completed (it may take 5-10 minutes). SegmentAnyBone will run in automated mode and will segment bones in each slice it can detect.
+- For each structure of interest: choose a label (above the "Run automatic segmentation" button, for example: "hip") and click "Assign label (2D)" or "Assign label (3D)" button
+  - **2D Label Assignment:** Change label of the connected component *only in the current slice*.
+  - **3D Label Assignment:** Change label of the connected component *through consecutive slices in 3D*.
 
 ### Prompt Based Segmentation
 
 <img src="Screenshots/sws3.png" width=45% height=45%>
 
-Firstly, select the label you want to segment from the dropdown list (hip for the image below). Then, click "Start Segmentation for Current Slice" button.
+- Select the label you want to segment from the dropdown list (for example "hip" as shown in the image below).
+- Click "Start Segmentation for Current Slice" button.
 
 If it is the first to segment a slice of this file, you need to wait for SegmentAnyBone to produce some files that will be used for the segmentation. After SegmentAnyBone generated these files, you can start putting **prompt points** or **prompt boxes** on the current slice. You'll be able to see the segmentation mask on 3D Slicer. Please click "Stop Segmentation for Current Slice" whenever you finish your segmentation for the current slice.
 
