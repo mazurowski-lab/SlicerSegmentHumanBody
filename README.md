@@ -8,8 +8,6 @@ SegmentHumanBody aims to asist its users in segmenting medical data on <a href="
 
 The repository is licensed under the [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)
 
-<img src="SegmentHumanBody/Resources/Icons/SegmentHumanBody.png" width=50% height=50%>
-
 ## Installation via GitHub Repository
 
 You can clone this repository by running the following command:
