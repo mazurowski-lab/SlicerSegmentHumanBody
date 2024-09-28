@@ -202,7 +202,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.goToMarkupsButton.connect("clicked(bool)", self.onGoToMarkups)
         self.ui.runAutomaticSegmentation.connect("clicked(bool)", self.onAutomaticSegmentation)
         self.ui.assignLabel2D.connect('clicked(bool)', self.onAssignLabel2D)
-        self.ui.assignLabel3D.connect('clicked(bool)', self.onAssignLabelIn3D)
+        #self.ui.assignLabel3D.connect('clicked(bool)', self.onAssignLabelIn3D)
         self.ui.segmentButton.connect("clicked(bool)", self.onStartSegmentation)
         self.ui.stopSegmentButton.connect("clicked(bool)", self.onStopSegmentButton)
         self.ui.segmentationDropDown.connect("currentIndexChanged(int)", self.updateParameterNodeFromGUI)
@@ -424,7 +424,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
             with open(self.featuresFolder + "/" + os.path.splitext(filename)[0] + "_features.pkl", "wb") as f:
                 pickle.dump(self.sam.features, f)
-
+    '''
     def onAssignLabelIn3D(self):
         self.initializeSegmentationProcess()
 
@@ -440,7 +440,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                     self.positivePromptPointsNode.GetNthControlPointPositionWorld(i, pointRAS)
                     pointIJK = [0, 0, 0, 1]
                     self.volumeRasToIjk.MultiplyPoint(np.append(pointRAS, 1.0), pointIJK)
-                    pointIJK = [ int(round(c)) for c in pointIJK[0:3] ]
+                    pointIJK = [ int(round(c)) for c in pointIJK[0:3]]
 
                     if self.sliceAccessorDimension == 2: 
                         promptPointToAssignLabel = [pointIJK[1], pointIJK[2]]
@@ -454,24 +454,25 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
             currentMask = None
             currentSliceIndex = self.getIndexOfCurrentSlice()
+            segmentationIdToBeUpdated = self.getLabelOfPromptPoint(promptPointToAssignLabel)
 
             sliceIndicesThatContainObject = []
             for sliceIndex in range(self.getTotalNumberOfSlices()):
-                if self.sliceAccessorDimension == 2 and self.segmentIdToSegmentationMask[self.firstSegmentId][:,:,sliceIndex][promptPointToAssignLabel[1], promptPointToAssignLabel[0]]:
+                if self.sliceAccessorDimension == 2 and self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,:,sliceIndex][promptPointToAssignLabel[1], promptPointToAssignLabel[0]]:
                     sliceIndicesThatContainObject.append(sliceIndex)
-                elif self.sliceAccessorDimension == 1 and self.segmentIdToSegmentationMask[self.firstSegmentId][:,sliceIndex,:][promptPointToAssignLabel[1], promptPointToAssignLabel[0]]:
+                elif self.sliceAccessorDimension == 1 and self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,sliceIndex,:][promptPointToAssignLabel[1], promptPointToAssignLabel[0]]:
                     sliceIndicesThatContainObject.append(sliceIndex)
-                elif self.sliceAccessorDimension == 0 and self.segmentIdToSegmentationMask[self.firstSegmentId][sliceIndex,:,:][promptPointToAssignLabel[1], promptPointToAssignLabel[0]]:
+                elif self.sliceAccessorDimension == 0 and self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][sliceIndex,:,:][promptPointToAssignLabel[1], promptPointToAssignLabel[0]]:
                     sliceIndicesThatContainObject.append(sliceIndex)
 
             for currentSliceIndex in sliceIndicesThatContainObject:
 
                 if self.sliceAccessorDimension == 2:
-                    currentMask = self.segmentIdToSegmentationMask[self.firstSegmentId][:,:,currentSliceIndex]
+                    currentMask = self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,:,currentSliceIndex]
                 elif self.sliceAccessorDimension == 1:
-                    currentMask = self.segmentIdToSegmentationMask[self.firstSegmentId][:,currentSliceIndex,:]
+                    currentMask = self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,currentSliceIndex,:]
                 else:
-                    currentMask = self.segmentIdToSegmentationMask[self.firstSegmentId][currentSliceIndex,:,:]
+                    currentMask = self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][currentSliceIndex,:,:]
 
                 currentMask = self.bfs(currentMask, promptPointToAssignLabel)
 
@@ -480,19 +481,19 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
                 if self.sliceAccessorDimension == 2:
                     self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,:,currentSliceIndex] = currentMask
-                    self.segmentIdToSegmentationMask[self.firstSegmentId][:,:,currentSliceIndex][currentMask == True] = False
+                    self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,:,currentSliceIndex][currentMask == True] = False
                 elif self.sliceAccessorDimension == 1:
                     self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,currentSliceIndex,:] = currentMask
-                    self.segmentIdToSegmentationMask[self.firstSegmentId][:,currentSliceIndex,:][currentMask == True] = False
+                    self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,currentSliceIndex,:][currentMask == True] = False
                 else:
                     self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][currentSliceIndex,:,:] = currentMask
-                    self.segmentIdToSegmentationMask[self.firstSegmentId][currentSliceIndex,:,:][currentMask == True] = False
+                    self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][currentSliceIndex,:,:][currentMask == True] = False
                 
                 
                 slicer.util.updateSegmentBinaryLabelmapFromArray(
-                    self.segmentIdToSegmentationMask[self.firstSegmentId],
+                    self.segmentIdToSegmentationMask[segmentationIdToBeUpdated],
                     self._parameterNode.GetNodeReference("SAMSegmentationNode"),
-                    self.firstSegmentId,
+                    segmentationIdToBeUpdated,
                     self._parameterNode.GetNodeReference("InputVolume") 
                 )
 
@@ -509,6 +510,17 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         if not labelAssigned:
             qt.QTimer.singleShot(100, self.onAssignLabelIn3D)
+    '''
+    def getLabelOfPromptPoint(self, promptPoint):
+        currentSliceIndex = self.getIndexOfCurrentSlice()
+
+        for segmentId in self.segmentIdToSegmentationMask.keys():
+            if self.sliceAccessorDimension == 2 and self.segmentIdToSegmentationMask[segmentId][:,:,currentSliceIndex][promptPoint[1], promptPoint[0]]:
+                return segmentId
+            elif self.sliceAccessorDimension == 1 and self.segmentIdToSegmentationMask[segmentId][:,currentSliceIndex,:][promptPoint[1], promptPoint[0]]:
+                return segmentId
+            elif self.sliceAccessorDimension == 0 and self.segmentIdToSegmentationMask[segmentId][currentSliceIndex,:,:][promptPoint[1], promptPoint[0]]:
+                return segmentId
 
     def onAssignLabel2D(self):
         self.initializeSegmentationProcess()
@@ -539,34 +551,35 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
             currentMask = None
             currentSliceIndex = self.getIndexOfCurrentSlice()
+            segmentationIdToBeUpdated = self.getLabelOfPromptPoint(promptPointToAssignLabel)
 
             if self.sliceAccessorDimension == 2:
-                currentMask = self.segmentIdToSegmentationMask[self.firstSegmentId][:,:,currentSliceIndex]
+                currentMask = self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,:,currentSliceIndex]
             elif self.sliceAccessorDimension == 1:
-                currentMask = self.segmentIdToSegmentationMask[self.firstSegmentId][:,currentSliceIndex,:]
+                currentMask = self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,currentSliceIndex,:]
             else:
-                currentMask = self.segmentIdToSegmentationMask[self.firstSegmentId][currentSliceIndex,:,:]
+                currentMask = self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][currentSliceIndex,:,:]
 
             currentMask = self.bfs(currentMask, promptPointToAssignLabel)
-
+            
             if self._parameterNode.GetParameter("SAMCurrentSegment") not in self.segmentIdToSegmentationMask:
                 self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")] = np.zeros(self.volumeShape)
 
             if self.sliceAccessorDimension == 2:
                 self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,:,currentSliceIndex] = currentMask
-                self.segmentIdToSegmentationMask[self.firstSegmentId][:,:,currentSliceIndex][currentMask == True] = False
+                self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,:,currentSliceIndex][currentMask == True] = False
             elif self.sliceAccessorDimension == 1:
                 self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,currentSliceIndex,:] = currentMask
-                self.segmentIdToSegmentationMask[self.firstSegmentId][:,currentSliceIndex,:][currentMask == True] = False
+                self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,currentSliceIndex,:][currentMask == True] = False
             else:
                 self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][currentSliceIndex,:,:] = currentMask
-                self.segmentIdToSegmentationMask[self.firstSegmentId][currentSliceIndex,:,:][currentMask == True] = False
+                self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][currentSliceIndex,:,:][currentMask == True] = False
             
             
             slicer.util.updateSegmentBinaryLabelmapFromArray(
-                self.segmentIdToSegmentationMask[self.firstSegmentId],
+                self.segmentIdToSegmentationMask[segmentationIdToBeUpdated],
                 self._parameterNode.GetNodeReference("SAMSegmentationNode"),
-                self.firstSegmentId,
+                segmentationIdToBeUpdated,
                 self._parameterNode.GetNodeReference("InputVolume") 
             )
 
