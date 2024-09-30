@@ -22,7 +22,7 @@ After cloning the repository, you need to introduce the extension to 3D Slicer. 
 
 ### Preparation
 
-- Load an image to be segmented. For example, you can use CTLiver data set from **Sample Data** module.
+- Load an image to be segmented.
 - Choose **Modules > Segmentation > SegmentHumanBody** module in the module selector. The first time the module is started, it will ask permission to install pytorch. Give permission and wait several minutes for the installation to complete. The application will not be responsive during the installation.
 - Click "Configure labels in the segment editor" button to create a label for each structure that will be segmented. For example, "hip" and "femur".
 - Go back to **SegmentHumanBody** module by clicking the green left arrow on the module toolbar. You are ready to segment now!
@@ -31,10 +31,10 @@ After cloning the repository, you need to introduce the extension to 3D Slicer. 
 
 <img src="Screenshots/sws1.png" width=45%> <img src="Screenshots/sws2.png" width=42%>
 
-- Click "Run Automatic Segmentation" button and wait until the processing is completed (it may take 5-10 minutes). SegmentAnyBone will run in automated mode and will segment bones in each slice it can detect.
+- Click "Run Automatic Segmentation" button and wait until the processing is completed (it may take some time based on number of slices). SegmentAnyBone will run in automated mode and will segment bones in each slice it can detect. This is going to be a binary segmentation (e.g. bone vs no-bone). To assign labels to different object of interests in slices, you can use label assignment feature: 
 - For each structure of interest: choose a label (above the "Run automatic segmentation" button, for example: "hip") and click "Assign label (2D)" or "Assign label (3D)" button
-  - **2D Label Assignment:** Change label of the connected component *only in the current slice*.
-  - **3D Label Assignment:** Change label of the connected component *through consecutive slices in 3D*.
+  - **2D Label Assignment:** Change label of the connected component *only in the current slice*. You should first place a prompt point on the object of interest whose label you want to change. Then, you should click Assign Label (2D) button. Label of the object of interest will be changed only in that particular slice.
+  - **3D Label Assignment:** Change label of the connected component *through consecutive slices in 3D*. You should first place a prompt point on the object of interest whose label you want to change. Then, you should click Assign Label (3D) button. Label of the connected component thtough consecutive slices will be changed.
 
 ### Prompt Based Segmentation
 
@@ -43,9 +43,13 @@ After cloning the repository, you need to introduce the extension to 3D Slicer. 
 - Select the label you want to segment from the dropdown list (for example "hip" as shown in the image below).
 - Click "Start Segmentation for Current Slice" button.
 
-If it is the first to segment a slice of this file, you need to wait for SegmentAnyBone to produce some files that will be used for the segmentation. After SegmentAnyBone generated these files, you can start putting **prompt points** or **prompt boxes** on the current slice. You'll be able to see the segmentation mask on 3D Slicer. Please click "Stop Segmentation for Current Slice" whenever you finish your segmentation for the current slice.
+If it is the first time to segment a slice of this file, you need to wait for SegmentHumanBody to produce some files that will be used for the segmentation. After SegmentHumanBody generated these files, you can start putting **prompt points** or **prompt boxes** on the current slice. You'll be able to see the segmentation mask on 3D Slicer. Please click "Stop Segmentation for Current Slice" whenever you finish your segmentation for the current slice.
 
-If you are not satisfied with the segmentation mask produced by SegmentAnyBone, you can edit it as you wish using the "Segment Editor" module of 3D Slicer.
+If you are not satisfied with the segmentation mask produced by SegmentHumanBody, you can edit it as you wish using the "Segment Editor" module of 3D Slicer.
+
+## Future Work
+
+More segmentation models that aims to segment various type of tissues will be added in the future.
 
 ## Citation
 
