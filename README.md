@@ -1,4 +1,4 @@
-# SlicerSegmentHumanBody
+# SegmentHumanBody
 
 [![arXiv Paper](https://img.shields.io/badge/arXiv-2401.12974-orange.svg?style=flat)](https://arxiv.org/abs/2401.12974)
 
@@ -32,15 +32,15 @@ After cloning the repository, you need to introduce the extension to 3D Slicer. 
 <img src="Screenshots/sws1.png" width=45%> <img src="Screenshots/sws2.png" width=42%>
 
 - Click "Run Automatic Segmentation" button and wait until the processing is completed (it may take some time based on number of slices). SegmentAnyBone will run in automated mode and will segment bones in each slice it can detect. This is going to be a binary segmentation (e.g. bone vs no-bone). To assign labels to different object of interests in slices, you can use label assignment feature: 
-- For each structure of interest: choose a label (above the "Run automatic segmentation" button, for example: "hip") and click "Assign label (2D)" or "Assign label (3D)" button
-  - **2D Label Assignment:** Change label of the connected component *only in the current slice*. You should first place a prompt point on the object of interest whose label you want to change. Then, you should click Assign Label (2D) button. Label of the object of interest will be changed only in that particular slice.
-  - **3D Label Assignment:** Change label of the connected component *through consecutive slices in 3D*. You should first place a prompt point on the object of interest whose label you want to change. Then, you should click Assign Label (3D) button. Label of the connected component thtough consecutive slices will be changed.
+- For each structure of interest: choose a label to assign (above the "Run automatic segmentation" button, for example: "hip") and click "Assign label (2D)" or "Assign label (3D)" button
+  - **2D Label Assignment:** Change label of the connected component *only in the current slice*. You should first place a prompt point on the object of interest whose label you want to change and click Assign Label (2D) button. Label of the object of interest will be changed only on that particular slice.
+  - **3D Label Assignment:** Change label of the connected component *through consecutive slices in 3D*. You should first place a prompt point on the object of interest whose label you want to change. Then, you should click Assign Label (3D) button. Label of the connected component through consecutive slices will be changed.
 
 ### Prompt Based Segmentation
 
 <img src="Screenshots/sws3.png" width=45% height=45%>
 
-- Select the label you want to segment from the dropdown list (for example "hip" as shown in the image below).
+- Select the label you want to segment from the dropdown list (for example "femur" as shown in the image above).
 - Click "Start Segmentation for Current Slice" button.
 
 If it is the first time to segment a slice of this file, you need to wait for SegmentHumanBody to produce some files that will be used for the segmentation. After SegmentHumanBody generated these files, you can start putting **prompt points** or **prompt boxes** on the current slice. You'll be able to see the segmentation mask on 3D Slicer. Please click "Stop Segmentation for Current Slice" whenever you finish your segmentation for the current slice.
