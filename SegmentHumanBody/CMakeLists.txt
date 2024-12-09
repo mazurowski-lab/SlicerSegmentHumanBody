@@ -32,7 +32,7 @@ set(MODULE_PYTHON_RESOURCES
 set(EXTENSION_HOMEPAGE "https://github.com/mazurowski-lab/SlicerSegmentHumanBody")
 set(EXTENSION_CATEGORY "Segmentation")
 set(EXTENSION_CONTRIBUTORS "Zafer Yildiz (Duke University - Mazurowski Lab)")
-set(EXTENSION_DESCRIPTION "SegmentHumanBody aims to asist its users in segmenting medical data on 3D Slicer by comprehensively integrating the SegmentAnyBone developed by Mazurowski Lab.")
+set(EXTENSION_DESCRIPTION "SegmentHumanBody aims to asist its users in segmenting medical data on 3D Slicer by comprehensively integrating the SegmentAnyBone developed by Mazurowski Lab. SegmentHumanBody has CC BY-NC 4.0 license which does not allow commercial use.")
 set(EXTENSION_ICONURL "https://raw.githubusercontent.com/mazurowski-lab/SlicerSegmentHumanBody/SegmentHumanBody/Resources/Icons/SegmentHumanBody.png")
 set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/mazurowski-lab/SlicerSegmentHumanBody/Screenshots/sws1.png")
 set(EXTENSION_DEPENDS "PyTorch") # Specified as a list or "NA" if no dependencies
