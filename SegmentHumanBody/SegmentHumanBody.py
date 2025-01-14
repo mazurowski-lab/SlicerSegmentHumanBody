@@ -65,6 +65,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         global SamPredictor
         global sab_model_registry
         global SabPredictor
+        global breastModelPredict
         global torch
         global cv2
         global timm
@@ -148,6 +149,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             from segment_anything import sam_model_registry, SamPredictor
             from models.sam import sam_model_registry as sab_model_registry
             from models.sam import SamPredictor as SabPredictor
+            from models.breast_model.predict_mask_singleimage import breast_model_predict_volume as breastModelPredict
         except ModuleNotFoundError:
             raise RuntimeError("There is a problem about the installation of 'segment-anything' package. Please try again to install!")
         
@@ -167,15 +169,23 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print("Working on", self.device)
 
-        self.loadModel()
+        self.changeModel("Breast Segmentation Model")
         self.currentlySegmenting = False
         self.featuresAreExtracted = False
 
     
-    def loadModel(self):
-        model = sab_model_registry[self.modelVersion](args,checkpoint=self.modelCheckpoint,num_classes=2)
-        model.to(device=self.device).eval()
-        self.sam = SabPredictor(model)
+    def changeModel(self, modelName):
+        self.modelName = modelName
+
+        if modelName == "SegmentAnyBone":
+
+            model = sab_model_registry[self.modelVersion](args,checkpoint=self.modelCheckpoint,num_classes=2)
+            model.to(device=self.device).eval()
+            self.sam = SabPredictor(model)
+        
+        elif modelName == "Breast Segmentation Model":
+            
+            pass
 
     def setup(self):
         """
@@ -207,6 +217,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.stopSegmentButton.connect("clicked(bool)", self.onStopSegmentButton)
         self.ui.segmentationDropDown.connect("currentIndexChanged(int)", self.updateParameterNodeFromGUI)
         self.ui.maskDropDown.connect("currentIndexChanged(int)", self.updateParameterNodeFromGUI)
+        self.ui.modelDropDown.connect("currentIndexChanged(int)", self.updateParameterNodeFromGUI)
 
         self.segmentIdToSegmentationMask = {}
         self.initializeParameterNode()
@@ -270,9 +281,9 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         if not self._parameterNode.GetNodeReferenceID("SAMSegmentationNode"):
 
-            self.samSegmentationNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSegmentationNode', 'SAM Segmentation')
+            self.samSegmentationNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSegmentationNode', 'Segmentation')
             self.samSegmentationNode.CreateDefaultDisplayNodes() 
-            self.firstSegmentId = self.samSegmentationNode.GetSegmentation().AddEmptySegment()
+            self.firstSegmentId = self.samSegmentationNode.GetSegmentation().AddEmptySegment("bone")
             
             self._parameterNode.SetNodeReferenceID("SAMSegmentationNode", self.samSegmentationNode.GetID())
             self._parameterNode.SetParameter("SAMCurrentSegment", self.firstSegmentId)
@@ -281,6 +292,9 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.ui.segmentationDropDown.addItem(self.samSegmentationNode.GetSegmentation().GetNthSegment(0).GetName())
             for i in range(2):
                 self.ui.maskDropDown.addItem("Mask-" + str(i+1))
+
+            self.ui.modelDropDown.addItem("SegmentAnyBone")
+            self.ui.modelDropDown.addItem("Breast Segmentation Model")
 
             
     def setParameterNode(self, inputParameterNode):
@@ -328,9 +342,11 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             if self._parameterNode.GetParameter("SAMCurrentSegment"):
                 self.ui.segmentationDropDown.setCurrentText(segmentationNode.GetSegmentation().GetSegment(self._parameterNode.GetParameter("SAMCurrentSegment")).GetName())
             
-
             if self._parameterNode.GetParameter("SAMCurrentMask"):
                 self.ui.maskDropDown.setCurrentText(self._parameterNode.GetParameter("SAMCurrentMask"))
+
+            if self._parameterNode.GetParameter("SAMCurrentModel"):
+                self.ui.modelDropDown.setCurrentText(self._parameterNode.GetParameter("SAMCurrentModel"))
 
         self._updatingGUIFromParameterNode = False
 
@@ -341,6 +357,11 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         if self._parameterNode is None or self._updatingGUIFromParameterNode:
             return
+
+        if self._parameterNode.GetParameter("SAMCurrentModel") != self.ui.modelDropDown.currentText:
+            print(self._parameterNode.GetParameter("SAMCurrentModel"), "=>", self.ui.modelDropDown.currentText)
+            self.changeModel(self.ui.modelDropDown.currentText)
+            self._parameterNode.SetParameter("SAMCurrentModel", self.ui.modelDropDown.currentText)
 
         if not self._parameterNode.GetNodeReference("SAMSegmentationNode") or not hasattr(self, 'volumeShape'):
             return
@@ -353,6 +374,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")] = np.zeros(self.volumeShape)
 
         self._parameterNode.SetParameter("SAMCurrentMask", self.ui.maskDropDown.currentText)
+        self._parameterNode.SetParameter("SAMCurrentModel", self.ui.modelDropDown.currentText)
 
         self._parameterNode.EndModify(wasModified)
 
@@ -639,77 +661,131 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if not self.initializeVariables():
             return
         
-        currentSegment = self._parameterNode.GetParameter("SAMCurrentSegment")
-        currentSliceIndex = self.getIndexOfCurrentSlice()
-        previouslyProducedMask = None
+        if self.modelName == "SegmentAnyBone":
 
-        if self.sliceAccessorDimension == 2:
-            previouslyProducedMask = self.segmentIdToSegmentationMask[currentSegment][:, :, currentSliceIndex]
-        elif self.sliceAccessorDimension == 1:
-            previouslyProducedMask = self.segmentIdToSegmentationMask[currentSegment][:, currentSliceIndex, :]
-        else:
-            previouslyProducedMask = self.segmentIdToSegmentationMask[currentSegment][currentSliceIndex, :, :]
-
-        if np.any(previouslyProducedMask):
-            segmentationNode = self._parameterNode.GetNodeReference("SAMSegmentationNode")
-            currentLabel = segmentationNode.GetSegmentation().GetSegment(currentSegment).GetName()
-
-            confirmed = slicer.util.confirmOkCancelDisplay(
-                f"Are you sure you want to re-annotate {currentLabel} for the current slice? All of your previous annotation for {currentLabel} in the current slice will be removed!",
-                windowTitle="Warning",
-            )
-            if not confirmed:
-                return
-
-        if not self.featuresAreExtracted:
-            self.extractFeatures()
-            self.featuresAreExtracted = True
-
-        roiList = slicer.util.getNodesByClass("vtkMRMLMarkupsROINode")
-        for roiNode in roiList:
-            slicer.mrmlScene.RemoveNode(roiNode)
-
-        for currentSliceIndex in range(self.getTotalNumberOfSlices()):
-            with open(self.featuresFolder + "/slice_" + str(currentSliceIndex) + "_features.pkl" , 'rb') as f:
-                self.sam.features = pickle.load(f)
-
-            self.init_masks, _, _ = self.sam.predict(
-                point_coords=None,
-                point_labels=None,
-                box=None,
-                multimask_output=True,
-                return_logits = False,
-            )
-
-            self.init_masks = self.init_masks>self.mask_threshold
-
-            if self.init_masks is not None:
-                if self._parameterNode.GetParameter("SAMCurrentMask") == "Mask-1":
-                    self.producedMask = self.init_masks[1][:]
-                else:
-                    self.producedMask = self.init_masks[0][:]
-
-            else:
-                self.producedMask = np.full(self.sam.original_size, False)
-            
-            if self._parameterNode.GetParameter("SAMCurrentSegment") not in self.segmentIdToSegmentationMask:
-                self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")] = np.zeros(self.volumeShape)
+            currentSegment = self._parameterNode.GetParameter("SAMCurrentSegment")
+            currentSliceIndex = self.getIndexOfCurrentSlice()
+            previouslyProducedMask = None
 
             if self.sliceAccessorDimension == 2:
-                self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,:,currentSliceIndex] = self.producedMask
+                previouslyProducedMask = self.segmentIdToSegmentationMask[currentSegment][:, :, currentSliceIndex]
             elif self.sliceAccessorDimension == 1:
-                self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,currentSliceIndex,:] = self.producedMask
+                previouslyProducedMask = self.segmentIdToSegmentationMask[currentSegment][:, currentSliceIndex, :]
             else:
-                self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][currentSliceIndex,:,:] = self.producedMask
-                
-            self.producedMask = np.full(self.sam.original_size, False)
+                previouslyProducedMask = self.segmentIdToSegmentationMask[currentSegment][currentSliceIndex, :, :]
 
-        slicer.util.updateSegmentBinaryLabelmapFromArray(
-            self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")],
-            self._parameterNode.GetNodeReference("SAMSegmentationNode"),
-            self._parameterNode.GetParameter("SAMCurrentSegment"),
-            self._parameterNode.GetNodeReference("InputVolume") 
-        )
+            if np.any(previouslyProducedMask):
+                segmentationNode = self._parameterNode.GetNodeReference("SAMSegmentationNode")
+                currentLabel = segmentationNode.GetSegmentation().GetSegment(currentSegment).GetName()
+
+                confirmed = slicer.util.confirmOkCancelDisplay(
+                    f"Are you sure you want to re-annotate {currentLabel} for the current slice? All of your previous annotation for {currentLabel} in the current slice will be removed!",
+                    windowTitle="Warning",
+                )
+                if not confirmed:
+                    return
+
+            if not self.featuresAreExtracted:
+                self.extractFeatures()
+                self.featuresAreExtracted = True
+
+            roiList = slicer.util.getNodesByClass("vtkMRMLMarkupsROINode")
+            for roiNode in roiList:
+                slicer.mrmlScene.RemoveNode(roiNode)
+
+            for currentSliceIndex in range(self.getTotalNumberOfSlices()):
+                with open(self.featuresFolder + "/slice_" + str(currentSliceIndex) + "_features.pkl" , 'rb') as f:
+                    self.sam.features = pickle.load(f)
+
+                self.init_masks, _, _ = self.sam.predict(
+                    point_coords=None,
+                    point_labels=None,
+                    box=None,
+                    multimask_output=True,
+                    return_logits = False,
+                )
+
+                self.init_masks = self.init_masks>self.mask_threshold
+
+                if self.init_masks is not None:
+                    if self._parameterNode.GetParameter("SAMCurrentMask") == "Mask-1":
+                        self.producedMask = self.init_masks[1][:]
+                    else:
+                        self.producedMask = self.init_masks[0][:]
+
+                else:
+                    self.producedMask = np.full(self.sam.original_size, False)
+                
+                if self._parameterNode.GetParameter("SAMCurrentSegment") not in self.segmentIdToSegmentationMask:
+                    self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")] = np.zeros(self.volumeShape)
+                
+                if self.sliceAccessorDimension == 2:
+                    self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,:,currentSliceIndex] = self.producedMask
+                elif self.sliceAccessorDimension == 1:
+                    self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,currentSliceIndex,:] = self.producedMask
+                else:
+                    self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][currentSliceIndex,:,:] = self.producedMask
+                    
+                self.producedMask = np.full(self.sam.original_size, False)
+
+            slicer.util.updateSegmentBinaryLabelmapFromArray(
+                self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")],
+                self._parameterNode.GetNodeReference("SAMSegmentationNode"),
+                self._parameterNode.GetParameter("SAMCurrentSegment"),
+                self._parameterNode.GetNodeReference("InputVolume") 
+            )
+
+        else:
+            self.breastTissueSegmentId = self.samSegmentationNode.GetSegmentation().AddEmptySegment("breast tissue")
+            self.breastVesselSegmentId = self.samSegmentationNode.GetSegmentation().AddEmptySegment("breast vessel")
+
+            self.createSlices()
+            slices = []
+            for currentSliceIndex in range(self.getTotalNumberOfSlices()):
+                sliceData = np.load(self.slicesFolder + "/" + f"slice_{currentSliceIndex}.npy")
+                slices.append(sliceData)
+
+            volume = np.stack(slices, axis=2)
+            checkpointPath = self.resourcePath("UI") + "/../../models/breast_model/vnet_with_aug.pth"
+            predictedVolume = breastModelPredict(volume, checkpointPath, self.device)
+
+            if self.breastTissueSegmentId not in self.segmentIdToSegmentationMask:
+                self.segmentIdToSegmentationMask[self.breastTissueSegmentId] = np.zeros(self.volumeShape)
+
+            if self.breastVesselSegmentId not in self.segmentIdToSegmentationMask:
+                self.segmentIdToSegmentationMask[self.breastVesselSegmentId] = np.zeros(self.volumeShape)
+
+            for sliceIndex in range(self.getTotalNumberOfSlices()):
+                sliceTissuePrediction = predictedVolume[2,:,:,sliceIndex]
+                sliceVesselPrediction = predictedVolume[1,:,:,sliceIndex]
+
+                tissueMask = sliceTissuePrediction.astype(bool) 
+                vesselMask = sliceVesselPrediction.astype(bool) 
+
+                if self.sliceAccessorDimension == 2:
+                    self.segmentIdToSegmentationMask[self.breastTissueSegmentId][:,:,sliceIndex] = tissueMask
+                    self.segmentIdToSegmentationMask[self.breastVesselSegmentId][:,:,sliceIndex] = vesselMask
+                elif self.sliceAccessorDimension == 1:
+                    self.segmentIdToSegmentationMask[self.breastTissueSegmentId][:,sliceIndex,:] = tissueMask
+                    self.segmentIdToSegmentationMask[self.breastVesselSegmentId][:,sliceIndex,:] = vesselMask
+                else:
+                    self.segmentIdToSegmentationMask[self.breastTissueSegmentId][sliceIndex,:,:] = tissueMask
+                    self.segmentIdToSegmentationMask[self.breastVesselSegmentId][sliceIndex,:,:] = vesselMask
+                
+
+            slicer.util.updateSegmentBinaryLabelmapFromArray(
+                self.segmentIdToSegmentationMask[self.breastTissueSegmentId],
+                self._parameterNode.GetNodeReference("SAMSegmentationNode"),
+                self.breastTissueSegmentId,
+                self._parameterNode.GetNodeReference("InputVolume") 
+            )
+
+            slicer.util.updateSegmentBinaryLabelmapFromArray(
+                self.segmentIdToSegmentationMask[self.breastVesselSegmentId],
+                self._parameterNode.GetNodeReference("SAMSegmentationNode"),
+                self.breastVesselSegmentId,
+                self._parameterNode.GetNodeReference("InputVolume") 
+            )
         
     def onStartSegmentation(self):
         if not self.initializeVariables():
