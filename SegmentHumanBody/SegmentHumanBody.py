@@ -70,6 +70,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         global cv2
         global timm
         global einops
+        global gdown
 
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)
@@ -132,12 +133,34 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 slicer.util.pip_install("einops")
                 slicer.util.pip_install("timm")
         
+        try:
+            import gdown
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "gdown package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("gdown")
+
+        try:
+            import gdown
+        except ModuleNotFoundError:
+            raise RuntimeError("There is a problem about the installation of 'gdown' package. Please try again to install!")
+
         try: 
             import timm
             import einops
         except ModuleNotFoundError:
             raise RuntimeError("There is a problem about the installation of 'timm' or 'einops' package. Please try again to install!")
         
+        if not os.path.exists(self.resourcePath("UI") + "/../../models/breast_model/vnet_with_aug.pth"):
+            if slicer.util.confirmOkCancelDisplay(
+                "Would you like to use breast segmentation model? Click OK to install it now!"
+            ):
+                url = 'https://drive.google.com/uc?id=1IQu_8hYnvAR1_GSKpzkf5l7mqlcQpq3j'
+                output = self.resourcePath("UI") + "/../../models/breast_model/vnet_with_aug.pth"
+                gdown.download(url, output, quiet=False)
+
+
         try:
             from segment_anything import sam_model_registry, SamPredictor
         except ModuleNotFoundError:
