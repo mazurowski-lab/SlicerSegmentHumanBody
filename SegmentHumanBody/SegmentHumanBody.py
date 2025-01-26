@@ -146,12 +146,30 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         except ModuleNotFoundError:
             raise RuntimeError("There is a problem about the installation of 'gdown' package. Please try again to install!")
 
+        try:
+            import git
+        except ModuleNotFoundError:
+            slicer.util.pip_install("gitpython")
+
+        try: 
+            import git
+        except ModuleNotFoundError:
+            raise RuntimeError("There is a problem about the installation of 'gitpython' package. Please try again to install!")
+
+
         try: 
             import timm
             import einops
         except ModuleNotFoundError:
             raise RuntimeError("There is a problem about the installation of 'timm' or 'einops' package. Please try again to install!")
         
+        if not os.path.exists(self.resourcePath("UI") + "/../../models/breast_model"):
+            copyFolder = self.resourcePath("UI") + "/../../../repo_copy"
+            os.makedirs(copyFolder)
+            git.Repo.clone_from("https://github.com/mazurowski-lab/SlicerSegmentHumanBody", copyFolder)
+            shutil.move(copyFolder + "/SegmentHumanBody/models/breast_model", self.resourcePath("UI") + "/../../../SegmentHumanBody/models/breast_model")
+            shutil.rmtree(copyFolder, ignore_errors=True)
+
         if not os.path.exists(self.resourcePath("UI") + "/../../models/breast_model/vnet_with_aug.pth"):
             if slicer.util.confirmOkCancelDisplay(
                 "Would you like to use breast segmentation model? Click OK to install it now!"
