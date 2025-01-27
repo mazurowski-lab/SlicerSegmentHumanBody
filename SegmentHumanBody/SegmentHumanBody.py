@@ -164,10 +164,11 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             raise RuntimeError("There is a problem about the installation of 'timm' or 'einops' package. Please try again to install!")
         
         if not os.path.exists(self.resourcePath("UI") + "/../../models/breast_model"):
+            os.makedirs(self.resourcePath("UI") + "/../../models/breast_model", exist_ok=True)
             copyFolder = self.resourcePath("UI") + "/../../../repo_copy"
             os.makedirs(copyFolder)
             git.Repo.clone_from("https://github.com/mazurowski-lab/SlicerSegmentHumanBody", copyFolder)
-            shutil.move(copyFolder + "/SegmentHumanBody/models/breast_model", self.resourcePath("UI") + "/../../../SegmentHumanBody/models/breast_model")
+            shutil.move(copyFolder + "/SegmentHumanBody/models/breast_model", self.resourcePath("UI") + "/../../models/breast_model")
             shutil.rmtree(copyFolder, ignore_errors=True)
 
         if not os.path.exists(self.resourcePath("UI") + "/../../models/breast_model/vnet_with_aug.pth"):
