@@ -1,0 +1,13 @@
+{
+    "custom": {
+        "filename": "example.nii.gz",
+        "muscle_volume_mm3": 1308463.8977050781,
+        "muscle_density_hu": 38.24578588663591,
+        "sfat_volume_mm3": 1427724.6704101562,
+        "vfat_volume_mm3": 636121.4599609375,
+        "mfat_volume_mm3": 23311.553955078125,
+        "total_fat_volume_mm3": 2087157.6843261719,
+        "body_volume_mm3": 4886272.308349609,
+        "body_height_mm": 50.0
+    }
+}

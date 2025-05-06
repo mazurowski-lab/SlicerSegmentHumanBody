@@ -14,7 +14,7 @@
 						</size>
 					</property>
 					<property name="text">
-						<string>Select your label and mask type:</string>
+						<string>Select the model:</string>
 					</property>
 				</widget>
 			</item>
@@ -56,6 +56,14 @@
 							</item>
 
 							<item row="0" column="3" colspan="2">
+								<layout class="QHBoxLayout">
+									<item>
+										<widget class="QComboBox" name="ctSegmentationModelDropdown"/>
+									</item>
+								</layout>
+							</item>
+
+							<item row="0" column="3" colspan="2">
 								<widget class="QPushButton" name="assignLabel2D">
 									<property name="text">
 										<string>Assign Label (2D)</string>
@@ -75,6 +83,7 @@
 						</layout>
 						
 					</item>
+					
 					
 					<item>
 						<layout class="QHBoxLayout">
@@ -109,6 +118,25 @@
 								<widget class="QPushButton" name="stopSegmentButton">
 									<property name="text">
 										<string>Stop Segmentation for Current Slice</string>
+									</property>
+								</widget>
+							</item>
+						</layout>
+					</item>
+
+					<item row="0" column="0" colspan="2">
+						<layout class="QHBoxLayout">
+							<item row="0" column="0" colspan="3">
+								<widget class="QPushButton" name="startTrainingForSAM2ToolButton">
+									<property name="text">
+										<string>Start Training</string>
+									</property>
+								</widget>
+							</item>
+							<item row="0" column="3" colspan="3">
+								<widget class="QPushButton" name="startInferenceForSAM2ToolButton">
+									<property name="text">
+										<string>Start Inference</string>
 									</property>
 								</widget>
 							</item>

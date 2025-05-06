@@ -2,6 +2,7 @@ import glob
 import os
 import pickle
 import numpy as np
+import json
 import qt
 import vtk
 import shutil
@@ -15,7 +16,9 @@ from slicer.util import VTKObservationMixin
 import SampleData
 from models import cfg
 from collections import deque
-
+from PIL import Image
+from torchvision import transforms
+from torchvision.utils import save_image
 #
 # SegmentHumanBody
 #
@@ -64,13 +67,17 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         global sam_model_registry
         global SamPredictor
         global sab_model_registry
+        #global seg_any_muscle_pred_one_image
+        global sam2_annotation_tool
         global SabPredictor
         global breastModelPredict
+        global ct_segmentator
         global torch
         global cv2
         global timm
         global einops
         global gdown
+        global nibabel
 
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)
@@ -79,6 +86,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._updatingGUIFromParameterNode = False
         self.slicesFolder = self.resourcePath("UI") + "/../../../slices"
         self.featuresFolder = self.resourcePath("UI") + "/../../../features"
+        self.annotationMasksFolder = self.resourcePath("UI") + "/../../../annotations"
 
         self.modelVersion = "vit_t"
         self.modelName = "bone_sam.pth"
@@ -132,7 +140,129 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             ):
                 slicer.util.pip_install("einops")
                 slicer.util.pip_install("timm")
+
+
+        try:
+            import pandas
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "pandas package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("pandas")
+
+        try:
+            import batchgenerators
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "batchgenerators package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("batchgenerators")
+
+        try:
+            import nnunetv2
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "nnunetv2 package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("nnunetv2")
+
+        try:
+            import pywintypes
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "pypiwin32 package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("pypiwin32")
+
+        try:
+            import blosc2
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "blosc2 package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("blosc2")
+
+        try:
+            import totalsegmentator
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "totalsegmentator package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("totalsegmentator --user")
+
         
+        try:
+            import argparse
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "argparse package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("argparse")
+
+        try:
+            import tensordict
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "tensordict package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("tensordict --user")
+
+        try:
+            import tensorboard
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "tensorboard package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("tensorboard")
+
+        try:
+            import nibabel
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "nibabel package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("nibabel")
+
+        try:
+            import nrrd
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "pynrrd package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("pynrrd")
+
+        try:
+            import submitit
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "submitit package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("submitit")
+    
+        try:
+            import hydra
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "hydra package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("hydra-core")
+
+        try:
+            import iopath
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "iopath package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("iopath")
+
+        try:
+            import ruamel.yaml
+        except ModuleNotFoundError:
+            if slicer.util.confirmOkCancelDisplay(
+                "ruamel.yaml package is missing. Click OK to install it now!"
+            ):
+                slicer.util.pip_install("ruamel.yaml")
+
         try:
             import gdown
         except ModuleNotFoundError:
@@ -189,8 +319,11 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         try: 
             from segment_anything import sam_model_registry, SamPredictor
             from models.sam import sam_model_registry as sab_model_registry
+            #from models.segment_any_muscle.main import predict_one_image as seg_any_muscle_pred_one_image
+            from models.sam2_annotation_tool.annotation_tool import SAM2AnnotationTool as sam2_annotation_tool
             from models.sam import SamPredictor as SabPredictor
             from models.breast_model.predict_mask_singleimage import breast_model_predict_volume as breastModelPredict
+            from models.ct_segmentation import predict_muscle_fat as ct_segmentator
         except ModuleNotFoundError:
             raise RuntimeError("There is a problem about the installation of 'segment-anything' package. Please try again to install!")
         
@@ -224,8 +357,17 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             model.to(device=self.device).eval()
             self.sam = SabPredictor(model)
         
+        #elif modelName == "SegmentAnyMuscle":
+        #    pass
+
         elif modelName == "Breast Segmentation Model":
             
+            pass
+
+        elif modelName == "SLM-SAM 2":
+            self.initializeVariables()
+
+        elif modelName == "CT Segmentation":
             pass
 
     def setup(self):
@@ -254,6 +396,8 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.runAutomaticSegmentation.connect("clicked(bool)", self.onAutomaticSegmentation)
         self.ui.assignLabel2D.connect('clicked(bool)', self.onAssignLabel2D)
         self.ui.assignLabel3D.connect('clicked(bool)', self.onAssignLabelIn3D)
+        #self.ui.startTrainingForSAM2ToolButton.connect('clicked(bool)', self.sam2AnnotationToolTraining)
+        self.ui.startInferenceForSAM2ToolButton.connect('clicked(bool)', self.sam2AnnotationToolInference)
         self.ui.segmentButton.connect("clicked(bool)", self.onStartSegmentation)
         self.ui.stopSegmentButton.connect("clicked(bool)", self.onStopSegmentButton)
         self.ui.segmentationDropDown.connect("currentIndexChanged(int)", self.updateParameterNodeFromGUI)
@@ -336,6 +480,16 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
             self.ui.modelDropDown.addItem("SegmentAnyBone")
             self.ui.modelDropDown.addItem("Breast Segmentation Model")
+            #self.ui.modelDropDown.addItem("SegmentAnyMuscle")
+            self.ui.modelDropDown.addItem("CT Segmentation")
+
+            self.ui.ctSegmentationModelDropdown.addItem("Custom")
+            self.ui.ctSegmentationModelDropdown.addItem("2D")
+            self.ui.ctSegmentationModelDropdown.addItem("3D")
+            self.ui.ctSegmentationModelDropdown.addItem("Both")
+            
+
+            self.ui.modelDropDown.addItem("SLM-SAM 2")
 
             
     def setParameterNode(self, inputParameterNode):
@@ -402,6 +556,57 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if self._parameterNode.GetParameter("SAMCurrentModel") != self.ui.modelDropDown.currentText:
             print(self._parameterNode.GetParameter("SAMCurrentModel"), "=>", self.ui.modelDropDown.currentText)
             self.changeModel(self.ui.modelDropDown.currentText)
+            if self.ui.modelDropDown.currentText == "Breast Segmentation Model" or self.ui.modelDropDown.currentText == "SegmentAnyMuscle":
+                self.ui.assignLabel2D.hide()
+                self.ui.assignLabel3D.hide()
+                self.ui.goToMarkupsButton.hide()
+                self.ui.segmentButton.hide()
+                self.ui.stopSegmentButton.hide()
+                self.ui.segmentationDropDown.hide()
+                self.ui.maskDropDown.hide()
+                self.ui.ctSegmentationModelDropdown.hide()
+                self.ui.startTrainingForSAM2ToolButton.hide()
+                self.ui.startInferenceForSAM2ToolButton.hide()
+
+            if self.ui.modelDropDown.currentText == "SegmentAnyBone":
+                self.ui.assignLabel2D.show()
+                self.ui.assignLabel3D.show()
+                self.ui.goToMarkupsButton.show()
+                self.ui.segmentButton.show()
+                self.ui.stopSegmentButton.show()
+                self.ui.segmentationDropDown.show()
+                self.ui.maskDropDown.show()
+                self.ui.ctSegmentationModelDropdown.hide()
+                self.ui.startTrainingForSAM2ToolButton.hide()
+                self.ui.startInferenceForSAM2ToolButton.hide()
+
+
+            if self.ui.modelDropDown.currentText == "CT Segmentation":
+                self.ui.assignLabel2D.hide()
+                self.ui.assignLabel3D.hide()
+                self.ui.goToMarkupsButton.hide()
+                self.ui.segmentButton.hide()
+                self.ui.stopSegmentButton.hide()
+                self.ui.segmentationDropDown.hide()
+                self.ui.maskDropDown.hide()
+                self.ui.ctSegmentationModelDropdown.show()
+                self.ui.startTrainingForSAM2ToolButton.hide()
+                self.ui.startInferenceForSAM2ToolButton.hide()
+
+            if self.ui.modelDropDown.currentText == "SLM-SAM 2":
+                self.ui.assignLabel2D.hide()
+                self.ui.assignLabel3D.hide()
+                self.ui.goToMarkupsButton.hide()
+                self.ui.segmentButton.hide()
+                self.ui.stopSegmentButton.hide()
+                self.ui.segmentationDropDown.hide()
+                self.ui.maskDropDown.hide()
+                self.ui.ctSegmentationModelDropdown.show()
+                self.ui.startTrainingForSAM2ToolButton.hide()
+                self.ui.runAutomaticSegmentation.hide()
+                self.ui.ctSegmentationModelDropdown.hide()
+                self.ui.startInferenceForSAM2ToolButton.show()
+
             self._parameterNode.SetParameter("SAMCurrentModel", self.ui.modelDropDown.currentText)
 
         if not self._parameterNode.GetNodeReference("SAMSegmentationNode") or not hasattr(self, 'volumeShape'):
@@ -462,6 +667,115 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             sliceImage = self.getSliceBasedOnSliceAccessorDimension(sliceIndex)
             np.save(self.slicesFolder + "/" + f"slice_{sliceIndex}", sliceImage)
 
+    def createAnnotationMasks(self):
+        if not os.path.exists(self.annotationMasksFolder):
+            os.makedirs(self.annotationMasksFolder)
+
+        oldSliceFiles = glob.glob(self.annotationMasksFolder + "/*")
+        for filename in oldSliceFiles:
+            os.remove(filename)
+
+
+        volumeNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLScalarVolumeNode")
+        segmentationNode = self._parameterNode.GetNodeReference("SAMSegmentationNode")
+        segmentId = segmentationNode.GetSegmentation().GetSegmentIdBySegmentName('Segment_1')
+        #print(volumeNode, segmentationNode, segmentId)
+
+        slicer.util.saveNode(volumeNode, self.annotationMasksFolder + "/volume.nii.gz")
+        # Get segment as numpy array
+        segmentArray = slicer.util.arrayFromSegmentBinaryLabelmap(segmentationNode, segmentId, volumeNode)
+        
+        sliceAnnotationsArr = []
+
+        for sliceIndex in range(self.nofSlices):
+            sliceAnnotationImage = self.getAnnotationMaskBasedOnSliceAccessorDimension(segmentArray, sliceIndex)
+            sliceAnnotationsArr.append(sliceAnnotationImage)
+            np.save(self.annotationMasksFolder + "/" + f"slice_{sliceIndex}", sliceAnnotationImage)
+            #im = Image.fromarray(sliceAnnotationImage).convert('RGB')
+            #im.save(sliceAnnotationImage, self.annotationMasksFolder + "/" + f"slice_{sliceIndex}_mask.jpeg")
+
+        maskVolume = np.stack(sliceAnnotationsArr, axis=-1)
+        #print(volumeNode.shape, maskVolume.shape)
+        np.save(self.annotationMasksFolder + "/mask.npy", maskVolume)
+        np.save(self.annotationMasksFolder + "/volume.npy", nibabel.load(self.annotationMasksFolder + "/volume.nii.gz").get_fdata())
+        
+
+        self.sam2AnnotationTool = sam2_annotation_tool(
+            ckpt_folder=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/checkpoints",
+            cfg_folder=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/sam2/configs/sam2.1_training",
+            search_path=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/configs/sam2.1_training",
+        )
+
+    def sam2AnnotationToolInference(self):
+        
+        self.createAnnotationMasks()
+        img_vol_data, mask_vol_data = self.sam2AnnotationTool.load_data(
+            img_path=self.annotationMasksFolder + "/volume.npy",
+            mask_path=self.annotationMasksFolder + "/mask.npy"
+        )
+
+        predictedVolume = self.sam2AnnotationTool.inference(
+            data_save_directory=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/example_test_data/",
+            img_save_directory=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/example_test_data/images/",
+            mask_save_directory=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/example_test_data/masks/",
+            volume_name="volume",
+            img_vol_data=img_vol_data,
+            mask_vol_data=mask_vol_data,
+            ann_frame_idx=self.getIndexOfCurrentSlice(),
+            checkpoint_folder=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/sam2_logs/configs/sam2.1_training/lstm_sam2.1_hiera_t.yaml/checkpoints",
+            cfg_folder=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/sam2/configs/sam2.1"
+        )
+
+        for sliceIndex in range(self.getTotalNumberOfSlices()):
+            sliceMaskPrediction = predictedVolume[:,:,sliceIndex]
+            sliceMask = sliceMaskPrediction.astype(bool) 
+            segmentationNode = self._parameterNode.GetNodeReference("SAMSegmentationNode")
+            segmentId = segmentationNode.GetSegmentation().GetSegmentIdBySegmentName('Segment_1')
+
+            
+            if segmentId not in self.segmentIdToSegmentationMask:
+                self.segmentIdToSegmentationMask[segmentId] = np.zeros(self.volumeShape)
+            if self.sliceAccessorDimension == 2:
+                self.segmentIdToSegmentationMask[segmentId][:,:,sliceIndex] = sliceMask
+            elif self.sliceAccessorDimension == 1:
+                self.segmentIdToSegmentationMask[segmentId][:,sliceIndex,:] = sliceMask
+            else:
+                self.segmentIdToSegmentationMask[segmentId][sliceIndex,:,:] = sliceMask
+                
+
+            slicer.util.updateSegmentBinaryLabelmapFromArray(
+                self.segmentIdToSegmentationMask[segmentId],
+                self._parameterNode.GetNodeReference("SAMSegmentationNode"),
+                segmentId,
+                self._parameterNode.GetNodeReference("InputVolume") 
+            )
+
+
+    """def sam2AnnotationToolTraining(self):
+        
+        img_vol_data, mask_vol_data = self.sam2AnnotationTool.load_data(
+            img_path=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/example_train_data/img.npy",
+            mask_path=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/example_train_data/mask.npy"
+        )
+
+        self.sam2AnnotationTool.train(
+            data_save_directory=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/example_train_data/",
+            img_save_directory=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/example_train_data/images",
+            mask_save_directory=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/example_train_data/masks",
+            volume_name="volume",
+            img_vol_data=img_vol_data,
+            mask_vol_data=mask_vol_data,
+            config=self.resourcePath("UI") + "/../../models/sam2_annotation_tool/sam2/configs/sam2.1_training/lstm_sam2.1_hiera_t_mobile.yaml",
+            use_cluster=0,
+            partition=None,
+            account=None,
+            qos=None,
+            num_gpus=1,
+            num_nodes=None
+        )
+    """
+
+
     def getSliceBasedOnSliceAccessorDimension(self, sliceIndex):
         if self.sliceAccessorDimension == 0:
             return self.volume[sliceIndex, :, :]
@@ -469,6 +783,14 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             return self.volume[:, sliceIndex, :]
         else:
             return self.volume[:, :, sliceIndex]
+        
+    def getAnnotationMaskBasedOnSliceAccessorDimension(self, segmentationArray, sliceIndex):
+        if self.sliceAccessorDimension == 0:
+            return segmentationArray[sliceIndex, :, :]
+        elif self.sliceAccessorDimension == 1:
+            return segmentationArray[:, sliceIndex, :]
+        else:
+            return segmentationArray[:, :, sliceIndex]
 
     def createFeatures(self):
         if not os.path.exists(self.featuresFolder):
@@ -775,7 +1097,90 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 self._parameterNode.GetParameter("SAMCurrentSegment"),
                 self._parameterNode.GetNodeReference("InputVolume") 
             )
+        
+        elif self.modelName == "SegmentAnyMuscle":
+            pass
+            """
+            self.muscleSegmentId = self.samSegmentationNode.GetSegmentation().AddEmptySegment("muscle")
+            self.createSlices()
 
+            slices = []
+            sliceShape = None
+            for currentSliceIndex in range(self.getTotalNumberOfSlices()):
+                sliceData = np.load(self.slicesFolder + "/" + f"slice_{currentSliceIndex}.npy")
+                sliceShape = sliceData.shape
+                img = Image.fromarray(sliceData).convert('RGB')
+                print(type(img))
+                slices.append(img)
+
+            for currentSliceIndex in range(self.getTotalNumberOfSlices()):
+                #image_path = 'image.png' # Change this to the image path you want to predict
+                #img = Image.open(image_path).convert('RGB')
+                img = slices[currentSliceIndex]
+                img = transforms.Resize((1024,1024))(img) 
+                img = transforms.ToTensor()(img)
+                img = (img-img.min())/(img.max()-img.min()+1e-8)
+                img = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])(img)
+                img = img.unsqueeze(0)
+
+                # Make prediction
+                print(torch.cuda.is_available())
+                checkpointLoc = self.resourcePath("UI") + "/../../models/segment_any_muscle/segmentanymuscle.pth"
+                mask = seg_any_muscle_pred_one_image(img, checkpointLocation=checkpointLoc)
+                print(mask)
+                save_image(mask, self.slicesFolder + "/" + f"slice_{currentSliceIndex}_pred.png")
+                mask = transforms.Resize((sliceShape[0], sliceShape[1]))(mask.unsqueeze(0))
+                print(mask)
+                mask = mask.detach().numpy().astype(bool)
+                
+                print(mask.shape)
+                print(type(mask))
+
+                if self.muscleSegmentId not in self.segmentIdToSegmentationMask:
+                    self.segmentIdToSegmentationMask[self.muscleSegmentId] = np.zeros(self.volumeShape)
+
+                if self.sliceAccessorDimension == 2:
+                    self.segmentIdToSegmentationMask[self.muscleSegmentId][:,:,currentSliceIndex] = mask
+                elif self.sliceAccessorDimension == 1:
+                    self.segmentIdToSegmentationMask[self.muscleSegmentId][:,currentSliceIndex,:] = mask
+                else:
+                    self.segmentIdToSegmentationMask[self.muscleSegmentId][currentSliceIndex,:,:] = mask
+                    
+            slicer.util.updateSegmentBinaryLabelmapFromArray(
+                self.segmentIdToSegmentationMask[self.muscleSegmentId],
+                self._parameterNode.GetNodeReference("SAMSegmentationNode"),
+                self.muscleSegmentId,
+                self._parameterNode.GetNodeReference("InputVolume") 
+            )"""
+
+        elif self.modelName == "CT Segmentation":
+
+            volumeNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLScalarVolumeNode")
+            inputPath = self.resourcePath("UI") + "/../../models/ct_segmentation/demo" + "/example.nii.gz"
+            outputPath = self.resourcePath("UI") + "/../../models/ct_segmentation/results"
+            slicer.util.saveNode(volumeNode, inputPath)
+
+            #segmentation, metrics = ct_segmentator.segmentVolume(input_path=inputPath.replace("\\", "/"), body_composition_type="custom", output_path=outputPath.replace("\\", "/"))
+            os.system("python C:/Users/zafry/SlicerSegmentHumanBody/SegmentHumanBody/models/ct_segmentation/predict_muscle_fat.py")
+            
+
+            slicer.util.loadSegmentation(self.resourcePath("UI") + "/../../models/ct_segmentation/results/example_segmentation.nii.gz")
+            
+            ctSegmentationNode = slicer.mrmlScene.GetFirstNodeByName('example_segmentation.nii.gz')
+            ctSegmentationNode.GetSegmentation().GetNthSegment(0).SetName('muscle')
+            ctSegmentationNode.GetSegmentation().GetNthSegment(1).SetName('subcutaneous_fat')
+            ctSegmentationNode.GetSegmentation().GetNthSegment(2).SetName('visceral_fat')
+            ctSegmentationNode.GetSegmentation().GetNthSegment(3).SetName('muscular_fat')
+
+            with open(outputPath + '/metrics.txt') as f: 
+                data = f.read()
+            js = json.loads(data)
+
+            confirmed = slicer.util.confirmOkCancelDisplay(
+                text=json.dumps(js, indent=4),
+                windowTitle="Metrics"
+            )
+            
         else:
             self.breastTissueSegmentId = self.samSegmentationNode.GetSegmentation().AddEmptySegment("breast tissue")
             self.breastVesselSegmentId = self.samSegmentationNode.GetSegmentation().AddEmptySegment("breast vessel")
