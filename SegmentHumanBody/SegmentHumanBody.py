@@ -308,6 +308,14 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 output = self.resourcePath("UI") + "/../../models/breast_model/vnet_with_aug.pth"
                 gdown.download(url, output, quiet=False)
 
+        if not os.path.exists(self.resourcePath("UI") + "/../../models/sam2_annotation_tool/sam2_logs/configs/sam2.1_training/lstm_sam2.1_hiera_t.yaml/checkpoints/checkpoint.pt"):
+            if slicer.util.confirmOkCancelDisplay(
+                "Would you like to use SLM-SAM2 model? Click OK to install it now!"
+            ):
+                url = 'https://drive.google.com/uc?id=1uTL1KWjYTIf27_Rs-H5Umr3PogfX1lyB'
+                output = self.resourcePath("UI") + "/../../models/sam2_annotation_tool/sam2_logs/configs/sam2.1_training/lstm_sam2.1_hiera_t.yaml/checkpoints/checkpoint.pt"
+                gdown.download(url, output, quiet=False)
+
 
         try:
             from segment_anything import sam_model_registry, SamPredictor
