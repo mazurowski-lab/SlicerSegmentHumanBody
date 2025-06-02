@@ -1,0 +1,12 @@
+
+#######################################################################
+Please cite the following paper when using nnU-Net:
+Isensee, F., Jaeger, P. F., Kohl, S. A., Petersen, J., & Maier-Hein, K. H. (2021). nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation. Nature methods, 18(2), 203-211.
+#######################################################################
+ 
+2024-10-27 06:54:41.906195: do_dummy_2d_data_aug: False 
+2024-10-27 06:54:41.906722: Using splits from existing split file: nnUNet_preprocessed/Dataset004_CTAbdomen/splits_final.json 
+2024-10-27 06:54:41.906930: The split file contains 5 splits. 
+2024-10-27 06:54:41.907007: Desired fold for training: 5 
+2024-10-27 06:54:41.907077: INFO: You requested fold 5 for training but splits contain only 5 folds. I am now creating a random (but seeded) 80:20 split! 
+2024-10-27 06:54:41.907778: This random 80:20 split has 49 training and 13 validation cases. 

@@ -1,0 +1,10 @@
+{"Trainer/where": 0.0, "Trainer/epoch": 0, "Trainer/steps_train": 1}
+{"Trainer/where": 0.1, "Trainer/epoch": 1, "Trainer/steps_train": 2}
+{"Trainer/where": 0.2, "Trainer/epoch": 2, "Trainer/steps_train": 3}
+{"Trainer/where": 0.3, "Trainer/epoch": 3, "Trainer/steps_train": 4}
+{"Trainer/where": 0.4, "Trainer/epoch": 4, "Trainer/steps_train": 5}
+{"Trainer/where": 0.5, "Trainer/epoch": 5, "Trainer/steps_train": 6}
+{"Trainer/where": 0.6, "Trainer/epoch": 6, "Trainer/steps_train": 7}
+{"Trainer/where": 0.7, "Trainer/epoch": 7, "Trainer/steps_train": 8}
+{"Trainer/where": 0.8, "Trainer/epoch": 8, "Trainer/steps_train": 9}
+{"Trainer/where": 0.9, "Trainer/epoch": 9, "Trainer/steps_train": 10}
