@@ -67,7 +67,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         global sam_model_registry
         global SamPredictor
         global sab_model_registry
-        #global seg_any_muscle_pred_one_image
+        global seg_any_muscle_pred_one_image
         global sam2_annotation_tool
         global SabPredictor
         global breastModelPredict
@@ -130,7 +130,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 )
 
         import torch
-
+        
         try:
             import timm
             import einops
@@ -286,7 +286,8 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         except ModuleNotFoundError:
             raise RuntimeError("There is a problem about the installation of 'gitpython' package. Please try again to install!")
 
-
+        os.system("git config --global core.longpaths true")
+        
         try: 
             import timm
             import einops
@@ -327,7 +328,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         try: 
             from segment_anything import sam_model_registry, SamPredictor
             from models.sam import sam_model_registry as sab_model_registry
-            #from models.segment_any_muscle.main import predict_one_image as seg_any_muscle_pred_one_image
+            from models.segment_any_muscle.main import predict_one_image as seg_any_muscle_pred_one_image
             from models.sam2_annotation_tool.annotation_tool import SAM2AnnotationTool as sam2_annotation_tool
             from models.sam import SamPredictor as SabPredictor
             from models.breast_model.predict_mask_singleimage import breast_model_predict_volume as breastModelPredict
@@ -365,8 +366,8 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             model.to(device=self.device).eval()
             self.sam = SabPredictor(model)
         
-        #elif modelName == "SegmentAnyMuscle":
-        #    pass
+        elif modelName == "SegmentAnyMuscle":
+            pass
 
         elif modelName == "Breast Segmentation Model":
             
@@ -488,7 +489,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
             self.ui.modelDropDown.addItem("SegmentAnyBone")
             self.ui.modelDropDown.addItem("Breast Segmentation Model")
-            #self.ui.modelDropDown.addItem("SegmentAnyMuscle")
+            self.ui.modelDropDown.addItem("SegmentAnyMuscle")
             self.ui.modelDropDown.addItem("CT Segmentation")
 
             self.ui.ctSegmentationModelDropdown.addItem("Custom")
@@ -1107,8 +1108,6 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             )
         
         elif self.modelName == "SegmentAnyMuscle":
-            pass
-            """
             self.muscleSegmentId = self.samSegmentationNode.GetSegmentation().AddEmptySegment("muscle")
             self.createSlices()
 
@@ -1159,7 +1158,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 self._parameterNode.GetNodeReference("SAMSegmentationNode"),
                 self.muscleSegmentId,
                 self._parameterNode.GetNodeReference("InputVolume") 
-            )"""
+            )
 
         elif self.modelName == "CT Segmentation":
 
