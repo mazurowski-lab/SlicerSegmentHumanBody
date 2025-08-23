@@ -17,8 +17,7 @@ import SampleData
 from models import cfg
 from collections import deque
 from PIL import Image
-from torchvision import transforms
-from torchvision.utils import save_image
+
 #
 # SegmentHumanBody
 #
@@ -78,6 +77,9 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         global einops
         global gdown
         global nibabel
+        global transforms
+        global save_image
+        
 
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)
@@ -103,8 +105,8 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         except ModuleNotFoundError:
             raise RuntimeError("You need to install PyTorch extension from the Extensions Manager.")
 
-        minimumTorchVersion = "1.7"
-        minimumTorchVisionVersion = "0.8"
+        minimumTorchVersion = "2.0.0"
+        minimumTorchVisionVersion = "0.15.0"
         torchLogic = PyTorchUtils.PyTorchUtilsLogic()
 
         if not torchLogic.torchInstalled():
@@ -113,6 +115,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             ):
                 torch = torchLogic.installTorch(
                     askConfirmation=True,
+                    forceComputationBackend="cu117",
                     torchVersionRequirement=f">={minimumTorchVersion}",
                     torchvisionVersionRequirement=f">={minimumTorchVisionVersion}",
                 )
@@ -130,6 +133,8 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 )
 
         import torch
+        from torchvision import transforms
+        from torchvision.utils import save_image
         
         try:
             import timm
@@ -205,7 +210,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             if slicer.util.confirmOkCancelDisplay(
                 "tensordict package is missing. Click OK to install it now!"
             ):
-                slicer.util.pip_install("tensordict --user")
+                slicer.util.pip_install("tensordict")
 
         try:
             import tensorboard
@@ -294,12 +299,15 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         except ModuleNotFoundError:
             raise RuntimeError("There is a problem about the installation of 'timm' or 'einops' package. Please try again to install!")
         
-        if not os.path.exists(self.resourcePath("UI") + "/../../models/breast_model"):
-            copyFolder = self.resourcePath("UI") + "/../../../repo_copy"
+        copyFolder = self.resourcePath("UI") + "/../../../repo_copy"
+
+        if not os.path.exists(copyFolder):
             os.makedirs(copyFolder)
             git.Repo.clone_from("https://github.com/mazurowski-lab/SlicerSegmentHumanBody", copyFolder)
+        
+        if not os.path.exists(self.resourcePath("UI") + "/../../models/breast_model"):
             shutil.move(copyFolder + "/SegmentHumanBody/models/breast_model", self.resourcePath("UI") + "/../../models/breast_model")
-            shutil.rmtree(copyFolder, ignore_errors=True)
+            #shutil.rmtree(copyFolder, ignore_errors=True)
 
         if not os.path.exists(self.resourcePath("UI") + "/../../models/breast_model/vnet_with_aug.pth"):
             if slicer.util.confirmOkCancelDisplay(
@@ -309,11 +317,29 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 output = self.resourcePath("UI") + "/../../models/breast_model/vnet_with_aug.pth"
                 gdown.download(url, output, quiet=False)
 
+        if not os.path.exists(self.resourcePath("UI") + "/../../models/ct_segmentation"):
+            shutil.move(copyFolder + "/SegmentHumanBody/models/ct_segmentation", self.resourcePath("UI") + "/../../models/ct_segmentation")
+            #shutil.rmtree(copyFolder, ignore_errors=True)
+
+        if not os.path.exists(self.resourcePath("UI") + "/../../models/ct_segmentation/nnUNetTrainer__nnUNetResEncUNetXLPlans__2d/fold_5/checkpoint_final.pth"):
+            if slicer.util.confirmOkCancelDisplay(
+                "Would you like to use CT Segmentation model? Click OK to install it now!"
+            ):
+                url = 'https://drive.google.com/uc?id=10Pt3nLXxx9nbikhsrTiMH2HQ5p9-GiLB'
+                os.makedirs(self.resourcePath("UI") + "/../../models/ct_segmentation/nnUNetTrainer__nnUNetResEncUNetXLPlans__2d/fold_5/", exist_ok=True)
+                output = self.resourcePath("UI") + "/../../models/ct_segmentation/nnUNetTrainer__nnUNetResEncUNetXLPlans__2d/fold_5/checkpoint_final.pth"
+                gdown.download(url, output, quiet=False)
+
+        if not os.path.exists(self.resourcePath("UI") + "/../../models/sam2_annotation_tool"):
+            shutil.move(copyFolder + "/SegmentHumanBody/models/sam2_annotation_tool", self.resourcePath("UI") + "/../../models/sam2_annotation_tool")
+            #shutil.rmtree(copyFolder, ignore_errors=True)
+
         if not os.path.exists(self.resourcePath("UI") + "/../../models/sam2_annotation_tool/sam2_logs/configs/sam2.1_training/lstm_sam2.1_hiera_t.yaml/checkpoints/checkpoint.pt"):
             if slicer.util.confirmOkCancelDisplay(
                 "Would you like to use SLM-SAM2 model? Click OK to install it now!"
             ):
                 url = 'https://drive.google.com/uc?id=1uTL1KWjYTIf27_Rs-H5Umr3PogfX1lyB'
+                os.makedirs(self.resourcePath("UI") + "/../../models/sam2_annotation_tool/sam2_logs/configs/sam2.1_training/lstm_sam2.1_hiera_t.yaml/checkpoints", exist_ok=True)
                 output = self.resourcePath("UI") + "/../../models/sam2_annotation_tool/sam2_logs/configs/sam2.1_training/lstm_sam2.1_hiera_t.yaml/checkpoints/checkpoint.pt"
                 gdown.download(url, output, quiet=False)
 
