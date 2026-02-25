@@ -429,7 +429,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.goToSegmentEditorButton.connect("clicked(bool)", self.onGoToSegmentEditor)
         self.ui.goToMarkupsButton.connect("clicked(bool)", self.onGoToMarkups)
         self.ui.runAutomaticSegmentation.connect("clicked(bool)", self.onAutomaticSegmentation)
-        self.ui.assignLabel2D.connect('clicked(bool)', self.onAssignLabel2D)
+        self.ui.superPixel.connect('clicked(bool)', self.onAssignLabel2D)
         self.ui.assignLabel3D.connect('clicked(bool)', self.onAssignLabelIn3D)
         #self.ui.startTrainingForSAM2ToolButton.connect('clicked(bool)', self.sam2AnnotationToolTraining)
         self.ui.startInferenceForSAM2ToolButton.connect('clicked(bool)', self.sam2AnnotationToolInference)
@@ -592,7 +592,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             print(self._parameterNode.GetParameter("SAMCurrentModel"), "=>", self.ui.modelDropDown.currentText)
             self.changeModel(self.ui.modelDropDown.currentText)
             if self.ui.modelDropDown.currentText == "Breast Segmentation Model" or self.ui.modelDropDown.currentText == "SegmentAnyMuscle":
-                self.ui.assignLabel2D.hide()
+                self.ui.superPixel.hide()
                 self.ui.assignLabel3D.hide()
                 self.ui.goToMarkupsButton.hide()
                 self.ui.segmentButton.hide()
@@ -604,7 +604,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 self.ui.startInferenceForSAM2ToolButton.hide()
 
             if self.ui.modelDropDown.currentText == "SegmentAnyBone":
-                self.ui.assignLabel2D.show()
+                self.ui.superPixel.show()
                 self.ui.assignLabel3D.show()
                 self.ui.goToMarkupsButton.show()
                 self.ui.segmentButton.show()
@@ -617,7 +617,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
 
             if self.ui.modelDropDown.currentText == "CT Segmentation":
-                self.ui.assignLabel2D.hide()
+                self.ui.superPixel.hide()
                 self.ui.assignLabel3D.hide()
                 self.ui.goToMarkupsButton.hide()
                 self.ui.segmentButton.hide()
@@ -629,7 +629,7 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 self.ui.startInferenceForSAM2ToolButton.hide()
 
             if self.ui.modelDropDown.currentText == "SLM-SAM 2":
-                self.ui.assignLabel2D.hide()
+                self.ui.superPixel.hide()
                 self.ui.assignLabel3D.hide()
                 self.ui.goToMarkupsButton.hide()
                 self.ui.segmentButton.hide()
@@ -942,80 +942,241 @@ class SegmentHumanBodyWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             elif self.sliceAccessorDimension == 0 and self.segmentIdToSegmentationMask[segmentId][currentSliceIndex,:,:][promptPoint[1], promptPoint[0]]:
                 return segmentId
 
+    def scribble_mask_to_anchors(
+        self,
+        mask,
+        spacing=40,        # desired pixel distance between anchors
+        simplify_tol=2.0   # smooth zig-zags slightly
+    ):
+        """
+        Convert a thick binary scribble mask to anchor points.
+
+        Assumes:
+            - Single scribble
+            - Binary mask (0/1 or 0/255)
+
+        Returns:
+            anchors: list[(x,y)]
+        """
+
+        mask = (mask > 0).astype(np.uint8)
+
+        # --- skeletonize ---
+        try:
+            from skimage.morphology import skeletonize
+            skel = skeletonize(mask.astype(bool)).astype(np.uint8)
+        except Exception:
+            raise RuntimeError("Install scikit-image: pip install scikit-image")
+
+        coords = np.column_stack(np.where(skel > 0))
+        if len(coords) < 2:
+            return []
+
+        path_yx = self._order_skeleton(coords, skel)
+
+        path_xy = [(int(x), int(y)) for y, x in path_yx]
+        path_xy = self._rdp(path_xy, simplify_tol)
+
+        # --- auto number of anchors ---
+        length = self._polyline_length(path_xy)
+        n = max(3, int(length / spacing))
+
+        anchors = self._sample_along_polyline(path_xy, n)
+        return anchors
+
+
+    # ---------------- helpers ---------------- #
+
+    def _neighbors8(self, y, x, H, W):
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dy == 0 and dx == 0:
+                    continue
+                ny, nx = y + dy, x + dx
+                if 0 <= ny < H and 0 <= nx < W:
+                    yield ny, nx
+
+
+    def _order_skeleton(self, coords, skel):
+        H, W = skel.shape
+        coords_set = set(map(tuple, coords.tolist()))
+
+        # degree of each pixel
+        deg = {}
+        for y, x in coords_set:
+            d = sum((ny, nx) in coords_set
+                    for ny, nx in self._neighbors8(y, x, H, W))
+            deg[(y, x)] = d
+
+        endpoints = [p for p, d in deg.items() if d == 1]
+
+        # adjacency
+        adj = {p: [] for p in coords_set}
+        for y, x in coords_set:
+            for ny, nx in self._neighbors8(y, x, H, W):
+                if (ny, nx) in coords_set:
+                    adj[(y, x)].append((ny, nx))
+
+        from collections import deque
+
+        def bfsScribble(start):
+            q = deque([start])
+            parent = {start: None}
+            dist = {start: 0}
+            while q:
+                u = q.popleft()
+                for v in adj[u]:
+                    if v not in dist:
+                        dist[v] = dist[u] + 1
+                        parent[v] = u
+                        q.append(v)
+            far = max(dist, key=dist.get)
+            return far, parent
+
+        start = endpoints[0] if endpoints else next(iter(coords_set))
+        a, _ = bfsScribble(start)
+        b, parent = bfsScribble(a)
+
+        path = []
+        cur = b
+        while cur is not None:
+            path.append(cur)
+            cur = parent[cur]
+
+        return path[::-1]
+
+
+    def _polyline_length(self, path):
+        pts = np.array(path, float)
+        return np.sum(np.linalg.norm(pts[1:] - pts[:-1], axis=1))
+
+
+    def _sample_along_polyline(self, path, k):
+        pts = np.array(path, float)
+        seg = pts[1:] - pts[:-1]
+        seglen = np.linalg.norm(seg, axis=1)
+
+        cum = np.concatenate([[0], np.cumsum(seglen)])
+        total = cum[-1]
+
+        targets = np.linspace(0, total, k)
+
+        out = []
+        j = 0
+        for t in targets:
+            while j+1 < len(cum) and cum[j+1] < t:
+                j += 1
+
+            t0, t1 = cum[j], cum[j+1]
+            a = 0 if t1 == t0 else (t - t0) / (t1 - t0)
+            p = pts[j]*(1-a) + pts[j+1]*a
+            out.append((int(round(p[0])), int(round(p[1]))))
+
+        return out
+
+
+    def _rdp(self, points, eps):
+        if len(points) < 3:
+            return points
+
+        pts = np.array(points, float)
+
+        def dist(p, a, b):
+            ab = b - a
+            if np.allclose(ab, 0):
+                return np.linalg.norm(p - a)
+            t = np.clip(np.dot(p-a, ab)/np.dot(ab,ab), 0, 1)
+            return np.linalg.norm(p-(a+t*ab))
+
+        def rdp(i0, i1):
+            a, b = pts[i0], pts[i1]
+            dmax, idx = 0, None
+            for i in range(i0+1, i1):
+                d = dist(pts[i], a, b)
+                if d > dmax:
+                    dmax, idx = d, i
+            if dmax > eps:
+                L = rdp(i0, idx)
+                R = rdp(idx, i1)
+                return L[:-1] + R
+            return [i0, i1]
+
+        keep = sorted(set(rdp(0, len(pts)-1)))
+        return [tuple(map(int, pts[i])) for i in keep]
+
+    def superPixelGrid(self, anchor_list):
+
+        from skimage.segmentation import slic, mark_boundaries
+        from skimage.draw import line
+
+        sliceImage = self.getSliceBasedOnSliceAccessorDimension(self.getIndexOfCurrentSlice())
+        print(sliceImage.shape)
+
+        sliceImage = Image.fromarray(sliceImage, 'RGB')
+        sliceImage = np.array(sliceImage)
+        print(sliceImage.shape)
+
+        spx = slic(sliceImage, n_segments=800, compactness=15, max_num_iter=20) 
+        grid = np.zeros_like(spx, dtype=np.uint8)
+
+        
+        for anchors in [anchor_list]:
+            for i in range(len(anchors) - 1):
+                x0, y0 = anchors[i]
+                x1, y1 = anchors[i + 1]
+            
+                # skimage uses (row, col) => (y, x)
+                rr, cc = line(y0, x0, y1, x1)
+            
+                grid[rr, cc] = 1
+
+        chosen_ids = np.unique(spx[grid>0])
+        hollow_mask = np.isin(spx, chosen_ids) 
+
+        from skimage.morphology import label
+        labelled_hollow_msk = label(hollow_mask+1)-1
+
+        SPX_completed_msk = np.isin(labelled_hollow_msk, chosen_ids)
+        return SPX_completed_msk
+
     def onAssignLabel2D(self):
-        self.initializeSegmentationProcess()
+        self.initializeVariables()
 
-        labelAssigned = False
-        promptPointToAssignLabel = None
-        nofPositivePromptPoints = self.positivePromptPointsNode.GetNumberOfControlPoints()
+        volumeNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLScalarVolumeNode")
+        segmentationNode = self._parameterNode.GetNodeReference("SAMSegmentationNode")
+        segmentationIdToBeUpdated = self._parameterNode.GetParameter("SAMCurrentSegment")
+        segmentArray = slicer.util.arrayFromSegmentBinaryLabelmap(segmentationNode, segmentationIdToBeUpdated, volumeNode)
 
-        if nofPositivePromptPoints > 0:
+        currentSliceIndex = self.getIndexOfCurrentSlice()
+        scribbleBinaryMask = self.getAnnotationMaskBasedOnSliceAccessorDimension(segmentArray, currentSliceIndex)
+        
 
-            for i in range(nofPositivePromptPoints):
-                if self.positivePromptPointsNode.GetNthControlPointVisibility(i):
-                    pointRAS = [0, 0, 0]
-                    self.positivePromptPointsNode.GetNthControlPointPositionWorld(i, pointRAS)
-                    pointIJK = [0, 0, 0, 1]
-                    self.volumeRasToIjk.MultiplyPoint(np.append(pointRAS, 1.0), pointIJK)
-                    pointIJK = [ int(round(c)) for c in pointIJK[0:3] ]
+        binaryMask = (scribbleBinaryMask > 0).astype(int)
+        print(binaryMask.shape)
+        anchor_list = self.scribble_mask_to_anchors(binaryMask)
+        
+        superPixelMask = self.superPixelGrid(anchor_list)
+        print(superPixelMask)
+        print(superPixelMask.shape)
 
-                    if self.sliceAccessorDimension == 2: 
-                        promptPointToAssignLabel = [pointIJK[1], pointIJK[2]]
-                    elif self.sliceAccessorDimension == 1:
-                        promptPointToAssignLabel = [pointIJK[0], pointIJK[2]]
-                    elif self.sliceAccessorDimension == 0:
-                        promptPointToAssignLabel = [pointIJK[0], pointIJK[1]]
-            
-            if promptPointToAssignLabel == None and not labelAssigned:
-                qt.QTimer.singleShot(100, self.onAssignLabel2D)
+        if self._parameterNode.GetParameter("SAMCurrentSegment") not in self.segmentIdToSegmentationMask:
+            self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")] = np.zeros(self.volumeShape)
 
-            currentMask = None
-            currentSliceIndex = self.getIndexOfCurrentSlice()
-            segmentationIdToBeUpdated = self.getLabelOfPromptPoint(promptPointToAssignLabel)
+        if self.sliceAccessorDimension == 2:
+            self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,:,currentSliceIndex] = superPixelMask
+        elif self.sliceAccessorDimension == 1:
+            self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,currentSliceIndex,:] = superPixelMask
+        else:
+            self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][currentSliceIndex,:,:] = superPixelMask
+        
+        
+        slicer.util.updateSegmentBinaryLabelmapFromArray(
+            self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")],
+            self._parameterNode.GetNodeReference("SAMSegmentationNode"),
+            self._parameterNode.GetParameter("SAMCurrentSegment"),
+            self._parameterNode.GetNodeReference("InputVolume") 
+        )
 
-            if self.sliceAccessorDimension == 2:
-                currentMask = self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,:,currentSliceIndex]
-            elif self.sliceAccessorDimension == 1:
-                currentMask = self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,currentSliceIndex,:]
-            else:
-                currentMask = self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][currentSliceIndex,:,:]
-
-            currentMask = self.bfs(currentMask, promptPointToAssignLabel)
-            
-            if self._parameterNode.GetParameter("SAMCurrentSegment") not in self.segmentIdToSegmentationMask:
-                self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")] = np.zeros(self.volumeShape)
-
-            if self.sliceAccessorDimension == 2:
-                self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,:,currentSliceIndex] = currentMask
-                self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,:,currentSliceIndex][currentMask == True] = False
-            elif self.sliceAccessorDimension == 1:
-                self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][:,currentSliceIndex,:] = currentMask
-                self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][:,currentSliceIndex,:][currentMask == True] = False
-            else:
-                self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")][currentSliceIndex,:,:] = currentMask
-                self.segmentIdToSegmentationMask[segmentationIdToBeUpdated][currentSliceIndex,:,:][currentMask == True] = False
-            
-            
-            slicer.util.updateSegmentBinaryLabelmapFromArray(
-                self.segmentIdToSegmentationMask[segmentationIdToBeUpdated],
-                self._parameterNode.GetNodeReference("SAMSegmentationNode"),
-                segmentationIdToBeUpdated,
-                self._parameterNode.GetNodeReference("InputVolume") 
-            )
-
-            slicer.util.updateSegmentBinaryLabelmapFromArray(
-                self.segmentIdToSegmentationMask[self._parameterNode.GetParameter("SAMCurrentSegment")],
-                self._parameterNode.GetNodeReference("SAMSegmentationNode"),
-                self._parameterNode.GetParameter("SAMCurrentSegment"),
-                self._parameterNode.GetNodeReference("InputVolume") 
-            )
-
-            labelAssigned = True
-            for i in range(self.positivePromptPointsNode.GetNumberOfControlPoints()):
-                self.positivePromptPointsNode.SetNthControlPointVisibility(i, False)
-
-        if not labelAssigned:
-            qt.QTimer.singleShot(100, self.onAssignLabel2D)
 
     def isValidCoordination(self, cRow, cCol, row, col):
         if (cRow >= 0 and cRow < row and cCol >= 0 and cCol < col):
